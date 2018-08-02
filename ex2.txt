@@ -1,0 +1,2262 @@
+;============================================
+;SEGMENT DANYCH POCZATEK
+;============================================
+dane1 segment
+
+	Filename	db 	128 dup(0d)
+	Filenamelength	dw	0d
+	Logger		db	"STDERR.txt", 0d
+
+	FileIn		dw	?
+	Stderr		dw	?
+	Buffer		db	512 dup(0d)
+	Linia		db	13d, 10d, "Linia "
+			db	20 dup(0d)
+
+	numofsigns	db	0d
+
+	Koniec		db	104d, 13d, 10d, "====================================================================================================", 13d, 10d
+
+	NoArgException		db	13d, 10d, "Blad: brak argumentu w wywolaniu programu.", 13d, 10d, "Poprawny format: program2 plik.wej", 13d, 10d, 0d 
+	TooManyArgException	db	13d, 10d, "Blad: niepoprawne wywolanie programu -> zbyt duzo argumentow.", 13d, 10d, "Poprawny format: program2 plik.wej", 13d, 10d, 0d
+	OpenFileInException	db	13d, 10d, "Blad podczas proby otwarcia pliku wejsciowego. Sprawdz czy podany plik istnieje i nadaje sie do odczytu. Dzialanie programu zostanie zakonczone", 13d, 10d, 0d
+	CantReadFileException	db	13d, 10d, "Blad podczas proby odczytu z pliku wejsciowego. Dzialanie programu zostanie zakonczone", 13d, 10d, 0d
+	CreatFileException	db	13d, 10d, "Blad podczas proby utworzenia stderr.txt -> Dzialanie programu zostanie zakonczone", 13d, 10d, 0d
+	MoveptrException	db	13d, 10d, "Blad podczas pisania w stderr.txt -> Dzialanie programu zostanie zakonczone", 13d, 10d, 0d
+	CmdNotFoundException	db	13d, 10d, "Blad: nierozpoznano polecenia. Wprowadz tak lub nie", 13d, 10d, 0d
+	FileClosingException	db	13d, 10d, "Blad podczas proby zamkniecia pliku. Dzialanie programu zostanie zakonczone", 13d, 10d, 0d
+	CantWrttoFileException	db	13d, 10d, "Blad podczas proby zapisu do pliku wyjsciowego. Dzialanie prgoramu zostanie zakonczone", 13d, 10d, 0d
+	FullDiskException	db	13d, 10d, "Dysk jest pelny - niemozna kontynuowac zapisu do pliku. Dzialanie programu zostanie zakonczone", 13d, 10d, 0d
+
+	LineFormatException	db	92d, 13d, 10d, "   Blad: niepoprawnie wypelniona linia. Poprawny format: [znak] [kolor] [rozmiar] [x] [y]."
+	SignFormatException	db	46d, 13d, 10d, "   Blad: podany znak nie jest znakiem ASCII."
+	ColorFormatException	db	60d, 13d, 10d, "   Blad: nierozponano koloru (dostepne sa: c, z, n lub b)."
+	SizeFormatException	db	60d, 13d, 10d, "   Blad: niepoprawny rozmiar (dostepne sa: 1, 2, 3 lub 4)."
+	XFormatException1	db	65d, 13d, 10d, "   Blad: niepoprawna wspolrzedna x -> podany x nie jest liczba."
+	XFormatException2	db	75d, 13d, 10d, "   Blad: niepoprawna wspolrzedna x -> rysowany znak wychodzi poza zakres."
+	YFormatException1	db	65d, 13d, 10d, "   Blad: niepoprawna wspolrzedna y -> podany y nie jest liczba."
+	YFormatException2	db	75d, 13d, 10d, "   Blad: niepoprawna wspolrzedna y -> rysowany znak wychodzi poza zakres."
+
+	OpenStderrException	db	13d, 10d, "Ostrzezenie: stderr.txt istnieje. Czy chcesz go nadpisac? [tak/nie]:", 13d, 10d, 0d
+
+	Choice			db	4d
+				db	0d
+				db	4 dup(0d)
+	
+	TAK			db	"tak", 0d
+	NIE			db	"nie", 0d
+
+	Sign			db	0d
+	Color			db	0d
+	Signsize		db	0d
+	Signlength		db	4 dup(0d)
+	Signwidth		db	4 dup(0d)
+	X			dw	0d	
+	Y			dw	0d
+
+	CRLF			db	2d, 13d, 10d
+
+	Sign_wykrz	db	00010000b	
+			db	00010000b
+			db	00010000b
+			db	00010000b
+			db	00000000b
+			db	00010000b
+			db	00000000b
+			db	00000000b
+
+	Sign_cudzys	db	00101000b	
+			db	00101000b
+			db	00000000b
+			db	00000000b
+			db	00000000b
+			db	00000000b
+			db	00000000b
+			db	00000000b
+
+	Sign_hash	db	00000000b	
+			db	00101000b
+			db	01111100b
+			db	00101000b
+			db	01111100b
+			db	00101000b
+			db	00000000b
+			db	00000000b
+
+	Sign_$		db	00001000b	
+			db	00011110b
+			db	00101000b
+			db	00011100b
+			db	00001010b
+			db	00111100b
+			db	00001000b
+			db	00000000b
+
+	Sign_procent	db	01100000b	
+			db	10010100b
+			db	01101000b
+			db	00010110b
+			db	00101001b
+			db	00000110b
+			db	00000000b
+			db	00000000b
+
+	Sign_persant	db	00011100b	
+			db	00100100b
+			db	00100100b
+			db	00011001b
+			db	00100110b
+			db	00011001b
+			db	00000000b
+			db	00000000b
+
+	Sign_apostrof	db	00001000b	
+			db	00001000b
+			db	00000000b
+			db	00000000b
+			db	00000000b
+			db	00000000b
+			db	00000000b
+			db	00000000b
+
+	Sign_lparen	db	00001000b	
+			db	00010000b
+			db	00100000b
+			db	00100000b
+			db	00010000b
+			db	00001000b
+			db	00000000b
+			db	00000000b
+
+	Sign_rparen	db	00010000b	
+			db	00001000b
+			db	00000100b
+			db	00000100b
+			db	00001000b
+			db	00010000b
+			db	00000000b
+			db	00000000b
+
+	Sign_gwiazdka	db	00101010b	
+			db	00011100b
+			db	00111110b
+			db	00011100b
+			db	00101010b
+			db	00000000b
+			db	00000000b
+			db	00000000b
+
+	Sign_plus	db	00000000b
+			db	00001000b
+			db	00001000b
+			db	00111110b
+			db	00001000b
+			db	00001000b
+			db	00000000b
+			db	00000000b
+
+	Sign_przecinek	db	00000000b
+			db	00000000b		
+			db	00000000b
+			db	00000000b
+			db	00000000b
+			db	00010000b
+			db	00100000b
+			db	00000000b
+
+	Sign_minus	db	00000000b
+			db	00000000b
+			db	00000000b
+			db	00111100b
+			db	00000000b
+			db	00000000b
+			db	00000000b
+			db	00000000b
+
+	Sign_dot	db	00000000b
+			db	00000000b		
+			db	00000000b
+			db	00000000b
+			db	00000000b
+			db	00010000b
+			db	00000000b
+			db	00000000b
+
+	Sign_slash	db	00000010b
+			db	00000100b
+			db	00001000b
+			db	00010000b
+			db	00100000b
+			db	01000000b
+			db	00000000b
+			db	00000000b
+
+	Sign_0		db	00011000b
+			db	00100100b
+			db	01000010b
+			db	01000010b
+			db	00100100b
+			db	00011000b
+			db	00000000b
+			db	00000000b
+
+	Sign_1		db	00001000b
+			db	00011000b
+			db	00001000b
+			db	00001000b
+			db	00001000b
+			db	00011100b
+			db	00000000b
+			db	00000000b
+
+	Sign_2		db	00111100b
+			db	01000010b
+			db	00000100b
+			db	00011000b
+			db	00100000b
+			db	01111110b
+			db	00000000b
+			db	00000000b
+
+	Sign_3		db	00111100b
+			db	01000010b
+			db	00000100b
+			db	00011000b
+			db	00000100b
+			db	01000010b
+			db	00111100b
+			db	00000000b
+
+	Sign_4		db	00001000b
+			db	00011000b
+			db	00101000b
+			db	01001000b
+			db	01111100b
+			db	00001000b
+			db	00000000b
+			db	00000000b
+
+	Sign_5		db	01111110b
+			db	01000000b
+			db	01111100b
+			db	00000010b
+			db	01000010b
+			db	00111100b
+			db	00000000b
+			db	00000000b
+
+	Sign_6		db	00111100b
+			db	01000000b
+			db	01111100b
+			db	01000010b
+			db	01000010b
+			db	01000010b
+			db	00111100b
+			db	00000000b
+			db	00000000b
+
+	Sign_7		db	01111110b
+			db	00000100b
+			db	00001000b
+			db	00010000b
+			db	00100000b
+			db	01000000b
+			db	00000000b
+			db	00000000b
+
+	Sign_8		db	00111100b
+			db	01000010b
+			db	00111100b
+			db	01000010b
+			db	01000010b
+			db	00111100b
+			db	00000000b
+			db	00000000b
+
+	Sign_9		db	00111100b	
+			db	01000010b
+			db	01000010b
+			db	00111110b
+			db	00000010b
+			db	00111100b
+			db	00000000b
+			db	00000000b
+
+	Sign_dwukropek	db	00000000b
+			db	00000000b	
+			db	00010000b
+			db	00000000b
+			db	00000000b
+			db	00010000b
+			db	00000000b
+			db	00000000b
+
+	Sign_srednik	db	00000000b
+			db	00000000b		
+			db	00010000b
+			db	00000000b
+			db	00000000b
+			db	00010000b
+			db	00100000b
+			db	00000000b
+
+	Sign_mniejsze	db	00000000b
+			db	00000011b
+			db	00001100b
+			db	00110000b
+			db	00001100b
+			db	00000011b
+			db	00000000b
+			db	00000000b
+
+	Sign_rownasie	db	00000000b
+			db	00000000b
+			db	01111110b
+			db	00000000b
+			db	01111110b
+			db	00000000b
+			db	00000000b
+			db	00000000b
+
+	Sign_wieksze	db	00000000b
+			db	11000000b
+			db	00110000b
+			db	00001100b
+			db	00110000b
+			db	11000000b
+			db	00000000b
+			db	00000000b
+
+	Sign_?		db	00111000b
+			db	01000100b
+			db	00000100b
+			db	00011000b
+			db	00000000b
+			db	00010000b
+			db	00000000b
+			db	00000000b
+
+	Sign_@		db	00000000b
+			db	00011110b
+			db	00100010b
+			db	01001110b
+			db	01001010b
+			db	00101110b
+			db	00010000b
+			db	00001110b
+
+	Sign_A		db	00011000b
+			db	00011000b
+			db	00100100b
+			db	00111100b
+			db	01000010b
+			db	01000010b
+			db	00000000b
+			db	00000000b
+
+	Sign_B		db	01111100b
+			db	01000010b
+			db	01111100b
+			db	01000010b
+			db	01000010b
+			db	01111100b
+			db	00000000b
+			db	00000000b
+
+	Sign_C		db	00111100b
+			db	01000010b
+			db	10000000b
+			db	10000000b
+			db	01000010b
+			db	00111100b
+			db	00000000b
+			db	00000000b
+
+	Sign_D		db	01111000b
+			db	01000100b
+			db	01000010b
+			db	01000010b
+			db	01000100b
+			db	01111000b
+			db	00000000b
+			db	00000000b
+
+	Sign_E		db	01111110b
+			db	01000000b
+			db	01111100b
+			db	01000000b
+			db	01000000b
+			db	01111110b
+			db	00000000b
+			db	00000000b
+
+	Sign_F		db	01111110b
+			db	01000000b
+			db	01111100b
+			db	01000000b
+			db	01000000b
+			db	01000000b
+			db	00000000b
+			db	00000000b
+
+	Sign_G		db	00111100b
+			db	01000010b
+			db	10000000b
+			db	10011100b
+			db	01000010b
+			db	00111100b
+			db	00000000b
+			db	00000000b
+
+	Sign_H		db	01000010b
+			db	01000010b
+			db	01111110b
+			db	01000010b
+			db	01000010b
+			db	01000010b
+			db	00000000b
+			db	00000000b
+
+	Sign_I		db	00111110b
+			db	00001000b
+			db	00001000b
+			db	00001000b
+			db	00001000b
+			db	00111110b
+			db	00000000b
+			db	00000000b
+
+	Sign_J		db	00111100b
+			db	00000100b
+			db	00000100b
+			db	00000100b
+			db	01000100b
+			db	00111000b
+			db	00000000b
+			db	00000000b
+
+	Sign_K		db	01000100b
+			db	01001000b
+			db	01010000b
+			db	01110000b
+			db	01001000b
+			db	01000100b
+			db	00000000b
+			db	00000000b
+
+	Sign_L		db	01000000b
+			db	01000000b
+			db	01000000b
+			db	01000000b
+			db	01000000b
+			db	01111110b
+			db	00000000b
+			db	00000000b
+
+	Sign_M		db	01000001b
+			db	01100011b
+			db	01010101b
+			db	01001001b
+			db	01000001b
+			db	01000001b
+			db	00000000b
+			db	00000000b
+
+	Sign_N		db	01000010b
+			db	01100010b
+			db	01010010b
+			db	01001010b
+			db	01000110b
+			db	01000010b
+			db	00000000b
+			db	00000000b
+
+	Sign_O		db	00011100b
+			db	00100010b
+			db	00100010b
+			db	00100010b
+			db	00100010b
+			db	00011100b
+			db	00000000b
+			db	00000000b
+
+	Sign_P		db	01111000b
+			db	01000100b
+			db	01111000b
+			db	01000000b
+			db	01000000b
+			db	01000000b
+			db	00000000b
+			db	00000000b
+
+	Sign_Q		db	00011100b
+			db	00100010b
+			db	00100010b
+			db	00100010b
+			db	00100010b
+			db	00011100b
+			db	00000010b
+			db	00000000b
+
+	Sign_R		db	01111000b
+			db	01000100b
+			db	01111000b
+			db	01010000b
+			db	01001000b
+			db	01000100b
+			db	00000000b
+			db	00000000b
+
+	Sign_S		db	00011100b
+			db	00100010b
+			db	00010000b
+			db	00001100b
+			db	00100010b
+			db	00011100b
+			db	00000000b
+			db	00000000b
+
+	Sign_T		db	01111111b
+			db	00001000b
+			db	00001000b
+			db	00001000b
+			db	00001000b
+			db	00001000b
+			db	00000000b
+			db	00000000b
+
+	Sign_U		db	01000010b
+			db	01000010b
+			db	01000010b
+			db	01000010b
+			db	01000010b
+			db	00111100b
+			db	00000000b
+			db	00000000b
+
+	Sign_V		db	10000001b
+			db	01000010b
+			db	01000010b
+			db	00100100b
+			db	00100100b
+			db	00011000b
+			db	00000000b
+			db	00000000b
+
+	Sign_W		db	01000001b
+			db	01000001b
+			db	01001001b
+			db	01010101b
+			db	01100011b
+			db	01000001b
+			db	00000000b
+			db	00000000b
+
+	Sign_X		db	01000010b
+			db	00100100b
+			db	00011000b
+			db	00011000b
+			db	00100100b
+			db	01000010b
+			db	00000000b
+			db	00000000b
+
+	Sign_Y		db	01000001b
+			db	00100010b
+			db	00010100b
+			db	00001000b
+			db	00001000b
+			db	00001000b
+			db	00000000b
+			db	00000000b
+
+	Sign_Z		db	01111110b
+			db	00000100b
+			db	00001000b
+			db	00010000b
+			db	00100000b
+			db	01111110b
+			db	00000000b
+			db	00000000b
+
+	Sign_lkwparen	db	00111000b
+			db	00100000b
+			db	00100000b
+			db	00100000b
+			db	00100000b
+			db	00111000b
+			db	00000000b
+			db	00000000b
+
+	Sign_backslash	db	01000000b
+			db	00100000b
+			db	00010000b
+			db	00001000b
+			db	00000100b
+			db	00000010b
+			db	00000000b
+			db	00000000b
+
+	Sign_rkwparen	db	00111000b
+			db	00001000b
+			db	00001000b
+			db	00001000b
+			db	00001000b
+			db	00111000b
+			db	00000000b
+			db	00000000b
+
+	Sign_daszek	db	00010000b
+			db	00101000b
+			db	00000000b
+			db	00000000b
+			db	00000000b
+			db	00000000b
+			db	00000000b
+			db	00000000b
+
+	Sign__		db	00000000b
+			db	00000000b
+			db	00000000b
+			db	00000000b
+			db	00000000b
+			db	01111110b
+			db	00000000b
+			db	00000000b
+
+	Sign_odapost	db	00010000b
+			db	00001000b
+			db	00000000b
+			db	00000000b
+			db	00000000b
+			db	00000000b
+			db	00000000b
+			db	00000000b
+
+	Sign_am		db	00000000b
+			db	00111100b
+			db	00000010b
+			db	00111110b
+			db	01000110b
+			db	00111010b
+			db	00000000b
+			db	00000000b
+
+	Sign_bm		db	01000000b
+			db	01000000b
+			db	01111100b
+			db	01000010b
+			db	01100010b
+			db	01011100b
+			db	00000000b
+			db	00000000b
+
+	Sign_cm		db	00000000b
+			db	00000000b
+			db	00011100b
+			db	00100000b
+			db	00100000b
+			db	00011100b
+			db	00000000b
+			db	00000000b
+
+	Sign_dm		db	00000010b
+			db	00000010b
+			db	00111110b
+			db	01000010b
+			db	01000110b
+			db	00111010b
+			db	00000000b
+			db	00000000b
+
+	Sign_em		db	00000000b
+			db	00111100b
+			db	01000010b
+			db	01111110b
+			db	01000000b
+			db	00111100b
+			db	00000000b
+			db	00000000b
+
+	Sign_fm		db	00000000b
+			db	00011000b
+			db	00010000b
+			db	00111000b
+			db	00010000b
+			db	00010000b
+			db	00000000b
+			db	00000000b
+
+	Sign_gm		db	00000000b
+			db	00000000b
+			db	00110100b
+			db	01001100b
+			db	01000100b
+			db	00110100b
+			db	00000100b
+			db	00111000b
+
+	Sign_hm		db	00100000b
+			db	00100000b
+			db	00111000b
+			db	00100100b
+			db	00100100b
+			db	00100100b
+			db	00000000b
+			db	00000000b
+
+	Sign_im		db	00001000b
+			db	00000000b
+			db	00001000b
+			db	00001000b
+			db	00001000b
+			db	00001000b
+			db	00000000b
+			db	00000000b
+
+	Sign_jm		db	00001000b
+			db	00000000b
+			db	00011000b
+			db	00001000b
+			db	00001000b
+			db	00001000b
+			db	00001000b
+			db	01110000b
+
+	Sign_km		db	00100000b
+			db	00100000b
+			db	00100100b
+			db	00101000b
+			db	00110000b
+			db	00101100b
+			db	00000000b
+			db	00000000b
+
+	Sign_lm		db	00010000b
+			db	00010000b
+			db	00010000b
+			db	00010000b
+			db	00010000b
+			db	00011000b
+			db	00000000b
+			db	00000000b
+
+	Sign_mm		db	00000000b
+			db	00000000b
+			db	01100110b
+			db	01011010b
+			db	01000010b
+			db	01000010b
+			db	00000000b
+			db	00000000b
+
+	Sign_nm		db	00000000b
+			db	00000000b
+			db	00101110b
+			db	00110010b
+			db	00100010b
+			db	00100010b
+			db	00000000b
+			db	00000000b
+
+	Sign_om		db	00000000b
+			db	00000000b
+			db	00111100b
+			db	01000010b
+			db	01000010b
+			db	00111100b
+			db	00000000b
+			db	00000000b
+
+	Sign_pm		db	00000000b
+			db	00000000b
+			db	01011100b
+			db	01100010b
+			db	01000010b
+			db	01111100b
+			db	01000000b
+			db	01000000b
+
+	Sign_qm		db	00000000b
+			db	00000000b
+			db	00111010b
+			db	01000110b
+			db	01000010b
+			db	00111110b
+			db	00000010b
+			db	00000010b
+
+	Sign_rm		db	00000000b
+			db	00000000b
+			db	00101100b
+			db	00110010b
+			db	00100000b
+			db	00100000b
+			db	00000000b
+			db	00000000b
+
+	Sign_sm		db	00000000b
+			db	00011100b
+			db	00100000b
+			db	00011000b
+			db	00000100b
+			db	00111000b
+			db	00000000b
+			db	00000000b
+
+	Sign_tm		db	00000000b
+			db	00010000b
+			db	00111100b
+			db	00010000b
+			db	00010000b
+			db	00011000b
+			db	00000000b
+			db	00000000b
+
+	Sign_um		db	00000000b
+			db	00000000b
+			db	00100010b
+			db	00100010b
+			db	00100110b
+			db	00011010b
+			db	00000000b
+			db	00000000b
+
+	Sign_vm		db	00000000b
+			db	00000000b
+			db	01000010b
+			db	01000010b
+			db	00100100b
+			db	00011000b
+			db	00000000b
+			db	00000000b
+
+	Sign_wm		db	00000000b
+			db	00000000b
+			db	10000001b
+			db	10000001b
+			db	01011010b
+			db	01100110b
+			db	00000000b
+			db	00000000b
+
+	Sign_xm		db	00000000b
+			db	00000000b
+			db	01000010b
+			db	00100100b
+			db	00011000b
+			db	01100110b
+			db	00000000b
+			db	00000000b
+
+	Sign_ym		db	00000000b
+			db	00000000b
+			db	01000010b
+			db	00100010b
+			db	00010100b
+			db	00001000b
+			db	00010000b
+			db	01100000b
+
+	Sign_zm		db	00000000b
+			db	00000000b
+			db	00111100b
+			db	00001000b
+			db	00010000b
+			db	00111100b
+			db	00000000b
+			db	00000000b
+
+	Sign_lwas	db	00011100b
+			db	00010000b
+			db	00110000b
+			db	00110000b
+			db	00010000b
+			db	00011100b
+			db	00000000b
+			db	00000000b
+
+	Sign_pipe	db	00001000b
+			db	00001000b
+			db	00001000b
+			db	00001000b
+			db	00001000b
+			db	00001000b
+			db	00001000b
+			db	00000000b
+
+	Sign_rwas	db	00111000b
+			db	00001000b
+			db	00001100b
+			db	00001100b
+			db	00001000b
+			db	00111000b
+			db	00000000b
+			db	00000000b
+
+	Sign_tylda	db	00000000b
+			db	00000000b
+			db	00000000b
+			db	00110010b
+			db	01001100b
+			db	00000000b
+			db	00000000b
+			db	00000000b
+
+	ASCIItab	dw	offset Sign_wykrz, offset Sign_cudzys, offset Sign_hash, offset Sign_$, offset Sign_procent, offset Sign_persant, offset Sign_apostrof
+			dw	offset Sign_lparen, offset Sign_rparen, offset Sign_gwiazdka, offset Sign_plus, offset Sign_przecinek, offset Sign_minus, offset Sign_dot, offset Sign_slash
+			dw	offset Sign_0, offset Sign_1, offset Sign_2, offset Sign_3, offset Sign_4, offset Sign_5, offset Sign_6, offset Sign_7, offset Sign_8, offset Sign_9
+			dw	offset Sign_dwukropek, offset Sign_srednik, offset Sign_mniejsze, offset Sign_rownasie, offset Sign_wieksze, offset Sign_?, offset Sign_@, offset Sign_A, offset Sign_B 
+			dw	offset Sign_C, offset Sign_D, offset Sign_E, offset Sign_F, offset Sign_G, offset Sign_H, offset Sign_I, offset Sign_J, offset Sign_K, offset Sign_L
+			dw	offset Sign_M, offset Sign_N, offset Sign_O, offset Sign_P, offset Sign_Q, offset Sign_R, offset Sign_S, offset Sign_T, offset Sign_U, offset Sign_V
+			dw	offset Sign_W, offset Sign_X, offset Sign_Y, offset Sign_Z, offset Sign_lkwparen, offset Sign_backslash, offset Sign_rkwparen, offset Sign_daszek, offset Sign__, offset Sign_odapost
+			dw	offset Sign_am, offset Sign_bm, offset Sign_cm, offset Sign_dm, offset Sign_em, offset Sign_fm, offset Sign_gm, offset Sign_hm, offset Sign_im, offset Sign_jm
+			dw	offset Sign_km, offset Sign_lm, offset Sign_mm, offset Sign_nm, offset Sign_om, offset Sign_pm, offset Sign_qm, offset Sign_rm, offset Sign_sm, offset Sign_tm
+			dw	offset Sign_um, offset Sign_vm, offset Sign_wm, offset Sign_xm, offset Sign_ym, offset Sign_zm, offset Sign_lwas, offset Sign_pipe, offset Sign_rwas, offset Sign_tylda
+
+dane1 ends
+;============================================
+;SEGMENT DANYCH KONIEC
+;============================================
+
+
+
+;============================================
+;SEGMENT KODU POCZATEK
+;============================================
+code1 segment
+
+start:
+
+;inicjalizacja stosu:-------------------------
+
+	mov	ax,seg w_stosu	
+	mov	ss,ax
+	mov	sp,offset w_stosu
+
+;program:-------------------------------------
+
+	mov	ax, seg dane1			;ustawiamy ds na dane1
+	mov	ds, ax
+
+	call	cmdlineparser			;wczytywanie argumentu z lini polecen
+
+	call	openfilein			;otwieramy plik wejsciowy
+	call	openstderr			;otwieramy plik Stderr, do ktorego beda logowane bledy w pliku wejsciowym
+	
+	call	drawsigns			;gdy wszystkie pliku sa juz otwarte i przygotowane przechodzimy do rysowania znakow
+
+	mov 	bx, word ptr ds:[FileIn]	;po skonczonym rysowaniu zamykamy pliki
+	call 	closefile			;zamykamy plik do odczytu
+	mov 	bx, word ptr ds:[Stderr]
+	call 	closefile			;zamykamy plik z bledami
+
+;koniec programu:-----------------------------
+
+	mov	al,0d 			;zwracamy 0 do systemu
+	mov	ah,04ch 		;numer programu powracajacego do systemu
+	int	021h 			;zakonczenie programu
+
+;---------------------------------------------
+;PROCEDURY/FUNKCJE
+;---------------------------------------------
+
+openfilein:					;procedura otwiera plik wejsciowy i zapisuje uchwyt do niego w FileIn
+	push	ax
+	push	dx
+						;input:					output:
+	xor	al, al				;AL = access code:			If succes AX = file handle
+     						;   0 = open for reading		if CF=1, AX=error code (2->file not found, 5->access denied,
+    						;   1 = open for writing		   4->all available handles in use, 12->no more files to be found)
+        					;   2 = open for read/write				
+	mov	dx, offset Filename		;DS:DX = address of filename (an ASCIIZ string ending with a zero byte)		
+	mov	ah, 03Dh			;AH = 3Dh -> function open existing file	
+	int	021h
+
+	jc	openfilein_err			;jesli wystapil blad podczas proby otwarcia informujemy o tym uzytkownika i konczymy dzialanie programu
+
+	mov	word ptr ds:[FileIn], ax	;jesli nie wystapil zapisujemy uchwyt do pliku w FileIn
+
+	pop	dx				;sciagamy wartosci z rejestrow i powracamy z procedury
+	pop	ax
+	ret
+
+	openfilein_err:						;w przypadku wystapienia bledu wypisujemy odpowieni komunikat i konczymy dzialanie programu
+		mov	ax, offset OpenFileInException
+		call	exception
+;===========================================================================================================================================================
+openstderr:					;procedura otwiera stderr.txt i zapisuje uchwyt do niedo do Stderr
+	push	ax
+	push	bx
+	push	cx
+	push	dx
+	push	si
+	push	di
+						;Input					Output:
+	xor	al, al				;AL = access code:			If succes AX = file handle
+     	or	al, 2d				;   0 = open for reading		if CF=1, AX=error code (2->file not found, 5->access denied,
+    						;   1 = open for writing		   4->all available handles in use, 12->no more files to be found)
+        					;   2 = open for read/write				
+	mov	dx, offset Logger		;DS:DX = address of filename (an ASCIIZ string ending with a zero byte)		
+	mov	ah, 03Dh			;AH = 3Dh -> function open existing file	
+	int	021h
+
+	jc	openstderr_create		;jesli wystapil blad znaczy to tyle ze plik nie istnieje i nalezu go utworzyc
+
+	mov	word ptr ds:[Stderr], ax		;jesli plik sie utworzyl zapisujemy uchwyt do niego
+	mov	ax, offset OpenStderrException		;informujemy uzytkownika o mozliwosci nadpisania pliku lub kontynuacji pisania do niego
+
+	openstderr_choice:
+			
+		call	putstr				;wyswietlamy odpowiedni komunikat (zapyatnie lub informacje o blednej komendzie)
+
+		mov	ax, offset Choice		;odczytujemy wybor uzytkownika
+		call	getstr
+
+		mov	si, offset TAK			;i przyrownujemy do TAK jesli sie zgadza nadpisujemy plik
+		mov	di, offset Choice + 2
+		xor	ax, ax
+		call	strcmp
+		test	al, al
+		jz	openstderr_closeandcreate
+
+		mov	si, offset NIE			;jesli sie nie zgadza bedziemy dopisywac do konca stderr.txt
+		mov	di, offset Choice + 2
+		xor	ax, ax
+		call	strcmp
+		test	al, al
+		jz	openstderr_moveptr		
+
+		mov	ax, offset CmdNotFoundException		;jesli wprowadzono bledna komenda wyswietlamy komunikat i wczytujemy ponownie
+		jmp	openstderr_choice
+
+	openstderr_moveptr:				;jesli wybrana zostala opcja nie przesuwamy file pointer na koniec pliku
+
+							;Input					Output:
+		mov	ah, 042h         		;AH = 42h				DX:AX = new location in bytes from the beginning of the file
+		mov	bx, word ptr ds:[Stderr]     	;BX = file handle			If CF = 1, AX = error code (1 -> invalid function number,
+		xor	cx, cx          		;CX:DX = num bytes to move (signed)				    6 -> invalid file handle)
+		xor	dx, dx          		;AL = movement code:
+		mov	al, 2d         			;   0 = relative to beginning of file
+		int	21h             		;   1 = relative to current file pos
+							;   2 = move relative to end of file
+		jc	openstderr_moveptr_err
+		jmp	openstderr_fin	
+				
+	openstderr_closeandcreate:
+
+		mov 	bx, word ptr ds:[Stderr]
+		call 	closefile
+
+	openstderr_create:
+						;input"										output:
+		xor	cl, cl			;CL = attribute									If succes AX = file handle			
+						;DS:DX = address of filename (an ASCIIZ string ending with a zero byte)		if CF = 1, AX = error code 
+		mov	ah, 03Ch		;AH = 3Ch -> function create file/rewrite file					(3->path not found, 4->all
+		int	021h												      ;  available handles in use,
+															      ;  or 5->access denied)
+		jc	openstderr_create_err		;jesli wystapil blad wyswietlamy odpowiedni komunikat
+		
+		mov	word ptr ds:[Stderr], ax	;jesli nie bylo bledu i plik zostal utworzony/nadpisany zapisujemy jego uchwyt do FileOut
+		
+	openstderr_fin:
+		pop	di				;sciagamy wartosci ze stosu i wracamy z procedury
+		pop	si				
+		pop	dx					
+		pop	cx
+		pop	bx
+		pop	ax
+		ret
+
+	openstderr_create_err:					;w razie niepowodzenia tworzenia pliku zostaje wyswietlony odpowiedni komunikat
+		mov 	bx, word ptr ds:[FileIn]		;zamykamy plik do odczytu
+		call 	closefile
+		mov	ax, offset CreatFileException		;i konczymy dzialanie programu
+		call	exception
+
+	openstderr_moveptr_err:					;w razie niepowodzenia przesuwania fileptr zostaje wyswietlony odpowiedni komunikat
+		mov 	bx, word ptr ds:[FileIn]		;zamykamy plik do odczytu
+		call 	closefile
+		mov	ax, offset MoveptrException		;i konczymy dzialanie programu
+		call	exception
+;===========================================================================================================================================================
+closefile:			;procedura zamyka otwarty plik, uchwyt do pliku zostaje przekazany do procedury w rejestrze bx
+	push	ax
+
+	mov	ah, 03Eh	;funkcja systemowa zamykajaca plik, jesli CF = 1, AX = error code (6 -> invalid file handle)
+	int	021h
+
+	jc	closefile_err
+
+	pop	ax		;sciagamy wartosci ze stosu i powracamy z procedury
+	ret
+
+	closefile_err:					;informacja o bledzie podczas proby zmakniecia pliku
+		mov	ax, offset FileClosingException
+		call	exception
+;===========================================================================================================================================================
+drawsigns:				;procedura odczytuje plik.wej i jesli jest poprawny wyswietla odpowiednie znaki w trybie graficznym
+	push	ax			;ax bedzie wykorzystywane jako licznik ile bytow z pliku.wej wczytano
+	push	cx			;cx bedzie wykorzystywane jako licznik ile bytow pliku wej nalezy wczytac
+	push	dx
+	push	di
+
+	mov	al, 013h  		;wejscie w tryb graficzny 320 x 200 punktow 256 kolorow
+	mov	ah, 00h
+	int	10h
+
+	mov	ax, word ptr ds:[Filenamelength]
+	mov	dx, offset Filename
+	call	writetofile
+	mov	al, byte ptr ds:[CRLF]
+	mov	dx, offset CRLF + 1
+	call	writetofile
+
+	mov	cx, 512d		;wczytywac bedziemy po 512 bytow
+	xor	bx, bx
+	xor	di, di			;di bedzie licznikiem linijki w tekscie	
+
+	drawsigns_loop:			
+
+		call	readfromfile	;wczytujemy z pliku.wej odpowiednia ilosc bytow
+		call	parseanddraw	;odczytujemy je, i jesli sa poprawne wyswietlamy jesli nie to logujemy do stderr.txt
+		cmp	ax, cx		;jesli wczytano mniej bytow niz nalezalo znaczy to tyle ze skonczono czytac plik wej i wyskakujemy z petli
+		je	drawsigns_loop
+
+	xor	ax, ax
+	mov	al, byte ptr ds:[Koniec]
+	mov	dx, offset Koniec + 1
+	call	writetofile
+
+	waitforESC:			;aby wyjsc z trybu graficznego czekamy na nacisniecie ESC
+		mov	ah, 00h		;funkcja ta przerwania 16h wczytuje wcisniety klawisz
+		int	16h		;Output: al -> ascii,  ah -> scancode
+		cmp	al, 27d
+		jne	waitforESC
+
+	mov	al, 03h  		;powrot do trybu tekstowego
+	mov	ah, 00h
+	int	10h
+	
+	pop	di
+	pop	dx
+	pop	cx			
+	pop	ax
+	ret
+;===========================================================================================================================================================
+parseanddraw:						;procedura parsuje plik oraz poprawnie wprowadzone dane przetwarza a zle dane loguje do stderr.txt
+	push	ax
+	push	cx
+	push	dx
+	push	si
+
+
+	mov	si, offset Buffer			;do si laduje poczatek bufora z wczytanymi bajtami w pliku.wej
+	mov	cx, ax					;cx jest licznikiem znakow
+
+	readline:
+		
+		test	cx, cx				;sprawdzam czy nie wczytalem juz wszystkich znakow
+		jz	buffer_fin			;jesli tak to skacze do buffer_fin
+
+		mov	al, byte ptr ds:[si]		;jesli nie to sprawdzam czy wczytany znak nie jest LF jesli nie to skacze do checkline
+		cmp	al, 10d
+		jne	checkline
+
+		inc	si
+		dec	cx
+		test	cx, cx				;jesli tak to go pomijam i dopiero ide do parseline
+		jz	buffer_fin
+
+		checkline:				;sprawdzam czy jestem wtrakcie wczytywania linijka czy zaczynam wczytywac nowa
+			test	bh, 32d			;sprawdzam czy to juz jest jakas linijka jesli tak skacze do parseline
+			jnz	parseline		;by sprawdzic gdzie skonczylem wczytywanie
+			inc	di			;jesli nie to zwiekszam licznik linijek
+			or	bh, 32d			;i ustawiam flage wskazujaca ze wczytuje linijke
+			jmp	parsesign
+
+		parseline:				;jesli wczytywanie zosdtalo przerwane w srodku jakiejs lini sprawdzam gdzie i tam skacze
+
+			test	bh, 128d		;przerwalem po wczytaniu wszystkich znakow ale nie na znaku 13d
+			jnz	parse_toomany
+
+			test	bh, 64d			;przerwalem w trakcie wczytywania wspolrzednej y
+			jnz	parsewidth_con3
+
+			test	bl, 128d		;przerwalem w trakcie wczytywania wspolrzednej y
+			jnz	parsewidth_con3
+
+			test	bl, 64d			;przerwalem w trakcie wczytywania wspolrzednej y
+			jnz	parsewidth_con2
+
+			test	bh, 16d			;przerwalem w trakcie wczytywania wspolrzednej x
+			jnz	parsewidth_con1
+
+			test	bl, 32d			;przerwalem w trakcie wczytywania wspolrzednej x
+			jnz	parselength_con3
+
+			test	bl, 16d			;przerwalem w trakcie wczytywania wspolrzednej x
+			jnz	parselength_con3
+
+			test	bl, 8d			;przerwalem w trakcie wczytywania wspolrzednej x
+			jnz	parselength_con2
+
+			test	bh, 8d			;przerwalem w trakcie wczytywania wspolrzednej x
+			jnz	parselength_con1
+
+			test	bl, 4d			;przerwalem w trakcie wczytywania rozmiaru
+			jnz	parsesize_con
+
+			test	bh, 4d			;przerwalem w trakcie wczytywania rozmiaru
+			jnz	parsesize_con
+
+			test	bl, 2d			;przerwalem w trakcie wczytywania koloru
+			jnz	parsecolor_con
+
+			test	bh, 2d			;przerwalem w trakcie wczytywania koloru
+			jnz	parsecolor_con
+
+			test	bl, 1d			;przerwalem w trakcie wczytywania znaku
+			jnz	parsesign_con
+
+			test	bh, 1d			;przerwalem w trakcie wczytywania znaku
+			jnz	parsesign_con
+
+		parsesign:				;wczytywanie znaku
+			call	ignorewhitespaces	;pomijam biale znaki na poczatku jesli takie sa
+			cmp	al, 13d			;sprawdzam czy nie doszlem do konca lini
+			je	emptyline		;jesli tak to skacze do emptyline
+			call	iswhitespace		;sprawdzam czy nie skonczylem wczytywac na bialym znaku
+			test	dl, dl
+			jnz	buffer_fin		;jesli tak skonczyl sie bufor, skacze do buffer_fin
+
+			mov	byte ptr ds:[Sign], al	;jesli nie wydazylo sie nic z rzeczy opisanych wyzej wczytuje znak do pamieci
+			inc	si			
+			or	bh, 1d			;ustawiam flage ze wczytalem znak
+			test	cx, cx			;sprawdzam czy nie skonczyl sie bufor
+			jz	buffer_fin
+
+			parsesign_con:				;sprawdzam znaki wystepujace po znaku
+				mov	al, byte ptr ds:[si]
+				call	iswhitespace		;jesli jest to bialy znak to znaczy ze dobrze wprowadzono znak, skacze do koloru
+				test	dl, dl
+				jnz	parsecolor
+	
+				or	bl, 1d			;jesli jest to normalny znak znaczy ze zle wypelniono linijke, ustawiam odpowiednia flage
+				call	ignoresigns
+				cmp	al, 13d			
+				je	line_fin
+				test	cx, cx
+				jz	buffer_fin		
+				inc	cx
+				jmp	parsecolor	
+
+			emptyline:				;jesli linijka jest pusta pomijamy ja bez logowania bledu
+				inc	si
+				xor	bx, bx				
+				jmp	readline			
+
+		parsecolor:					;wczytywanie koloru
+			call	ignorewhitespaces		;pomijam biale znaki na poczatku jesli takie sa
+			cmp	al, 13d				;sprawdzam czy nie doszlem do konca lini
+			je	line_fin			;jesli tak to skacze do line_fin
+			call	iswhitespace			;sprawdzam czy nie skonczylem wczytywac na bialym znaku
+			test	dl, dl
+			jnz	buffer_fin			;jesli tak skonczyl sie bufor, skacze do buffer_fin
+
+			mov	byte ptr ds:[Color], al		;jesli nie wydazylo sie nic z rzeczy opisanych wyzej wczytuje znak do pamieci
+			inc	si
+			or	bh, 2d				;ustawiam flage ze wczytalem kolor
+			test	cx, cx				;sprawdzam czy nie skonczyl sie bufor
+			jz	buffer_fin
+
+			parsecolor_con:				;sprawdzam znaki wystepujace po kolorze
+				mov	al, byte ptr ds:[si]
+				call	iswhitespace		;jesli jest to bialy znak to znaczy ze dobrze wprowadzono znak, skacze do rozmiaru
+				test	dl, dl
+				jnz	parsesize
+	
+				or	bl, 2d			;jesli jest to poprawny kolor znaczy ze zle wypelniono linijke, ustawiam odpowiednia flage
+				call	ignoresigns
+				cmp	al, 13d
+				je	line_fin
+				test	cx, cx
+				jz	buffer_fin
+				inc	cx
+
+		parsesize:					;wczytywanie rozmiaru
+			call	ignorewhitespaces		;pomijam biale znaki na poczatku jesli takie sa
+			cmp	al, 13d				;sprawdzam czy nie doszlem do konca lini
+			je	line_fin			;jesli tak to skacze do line_fin
+			call	iswhitespace			;sprawdzam czy nie skonczylem wczytywac na bialym znaku
+			test	dl, dl
+			jnz	buffer_fin			;jesli tak skonczyl sie bufor, skacze do buffer_fin
+
+			mov	byte ptr ds:[Signsize], al	;jesli nie wydazylo sie nic z rzeczy opisanych wyzej wczytuje znak do pamieci
+			inc	si
+			or	bh, 4d				;ustawiam flage ze wczytalem rozmiar
+			test	cx, cx				;sprawdzam czy nie skonczyl sie bufor
+			jz	buffer_fin
+
+			parsesize_con:				;sprawdzam znaki wystepujace po rozmiarze
+				mov	al, byte ptr ds:[si]
+				call	iswhitespace		;jesli jest to bialy znak to znaczy ze dobrze wprowadzono znak, skacze do rozmiaru
+				test	dl, dl
+				jnz	parselength
+	
+				or	bl, 4d			;jesli jest to poprawny rozmiar znaczy ze zle wypelniono linijke, ustawiam odpowiednia flage
+				call	ignoresigns
+				cmp	al, 13d
+				je	line_fin
+				test	cx, cx
+				jz	buffer_fin
+				inc	cx
+
+		parselength:					;wczytywanie wspolrzednej x
+			call	ignorewhitespaces		;pomijam biale znaki na poczatku jesli takie sa
+			cmp	al, 13d				;sprawdzam czy nie doszlem do konca lini
+			je	line_fin			;jesli tak to skacze do line_fin
+			call	iswhitespace			;sprawdzam czy nie skonczylem wczytywac na bialym znaku
+			test	dl, dl
+			jnz	buffer_fin			;jesli tak skonczyl sie bufor, skacze do buffer_fin
+
+			mov	byte ptr ds:[Signlength], al	;jesli nie wydazylo sie nic z rzeczy opisanych wyzej wczytuje znak do pamieci
+			inc	si
+			or	bh, 8d				;ustawiam flage ze wczytalem pierwsza cyfre x
+			test	cx, cx				;sprawdzam czy nie skonczyl sie bufor
+			jz	buffer_fin
+
+			parselength_con1:					;wczytuje kolejne cyfry jesli takie sa
+				mov	al, byte ptr ds:[si]	
+				cmp	al, 13d
+				je	line_fin
+				call	iswhitespace
+				test	dl, dl
+				jnz	parsewidth				;jesli nie wa skacze wczytywac wspolrzedna y
+
+				mov	byte ptr ds:[Signlength + 1], al	;jesli sa zapisuje je do pamieci
+				inc	si
+				dec	cx	
+				or	bl, 8d					;ustawiam flage ze wczytalem druga cyfre x
+				test	cx, cx
+				jz	buffer_fin
+		
+			parselength_con2:					;wczytuje kolejne cyfry jesli takie sa
+				mov	al, byte ptr ds:[si]
+				cmp	al, 13d
+				je	line_fin
+				call	iswhitespace
+				test	dl, dl
+				jnz	parsewidth				;jesli nie wa skacze wczytywac wspolrzedna y
+				
+				mov	byte ptr ds:[Signlength + 2], al	;jesli sa zapisuje je do pamieci
+				inc	si
+				dec	cx		
+				or	bl, 16d					;ustawiam flage ze wczytalem trzecia cyfre x
+				test	cx, cx					
+				jz	buffer_fin
+
+			parselength_con3:			;sprawdzam znaki wystepujace po wspolrzednej x
+				mov	al, byte ptr ds:[si]	
+				call	iswhitespace		;jesli jest to bialy znak to znaczy ze dobrze wprowadzono znak, skacze do y
+				test	dl, dl
+				jnz	parsewidth
+	
+				or	bl, 32d			;jesli jest to inny znak znaczy ze zle wypelniono linijke, ustawiam odpowiednia flage
+				call	ignoresigns
+				cmp	al, 13d
+				je	line_fin
+				test	cx, cx
+				jz	buffer_fin
+				inc	cx
+
+		parsewidth:					;wczytywanie wspolrzednej y
+			call	ignorewhitespaces		;pomijam biale znaki na poczatku jesli takie sa
+			cmp	al, 13d				;sprawdzam czy nie doszlem do konca lini
+			je	line_fin			;jesli tak to skacze do line_fin
+			call	iswhitespace			;sprawdzam czy nie skonczylem wczytywac na bialym znaku
+			test	dl, dl				
+			jnz	buffer_fin			;jesli tak skonczyl sie bufor, skacze do buffer_fin
+
+			mov	byte ptr ds:[Signwidth], al	;jesli nie wydazylo sie nic z rzeczy opisanych wyzej wczytuje znak do pamieci
+			inc	si
+			or	bh, 16d				;ustawiam flage ze wczytalem pierwsza cyfre y
+			test	cx, cx				;sprawdzam czy nie skonczyl sie bufor
+			jz	buffer_fin		
+	
+			parsewidth_con1:					;wczytuje kolejne cyfry jesli takie sa
+				mov	al, byte ptr ds:[si]
+				cmp	al, 13d
+				je	parseline_fin
+				call	iswhitespace
+				test	dl, dl
+				jnz	parsewidth_con3				;jesli nie ma skacze sprawdzic czy nie ma dalszych znakow po y
+
+				mov	byte ptr ds:[Signwidth + 1], al		;jesli sa zapisuje je do pamieci
+				inc	si
+				dec	cx	
+				or	bl, 64d					;ustawiam flage ze wczytalem druga cyfre y
+				test	cx, cx
+				jz	buffer_fin
+
+			parsewidth_con2:					;wczytuje kolejne cyfry jesli takie sa
+				mov	al, byte ptr ds:[si]
+				cmp	al, 13d
+				je	parseline_fin
+				call	iswhitespace
+				test	dl, dl
+				jnz	parsewidth_con3				;jesli nie ma skacze sprawdzic czy nie ma dalszych znakow po y
+
+				mov	byte ptr ds:[Signwidth + 2], al		;jesli sa zapisuje je do pamieci
+				inc	si	
+				dec	cx
+				or	bl, 128d				;ustawiam flage ze wczytalem trzecia cyfre y
+				test	cx, cx
+				jz	buffer_fin
+
+			parsewidth_con3:				;sprawdzam znaki wystepujace po wspolrzednej y
+				call	ignorewhitespaces
+				or	bh, 64d
+				cmp	al, 13d
+				je	parseline_fin
+				call	iswhitespace			;jesli jest to bialy znak to znaczy ze dobrze wprowadzono znak, skacze do parseline_fin
+				test	dl, dl
+				jnz	buffer_fin
+				inc	cx
+
+		parse_toomany:				;jesli jest to inny znak znaczy ze zle wypelniono linijke, ustawiam odpowiednia flage
+			or	bh, 128d		
+			call	ignoreverysigns		;i przewijamznaki az nie dojde do konca lini
+			cmp	al, 13d
+			je	line_fin
+			test	cx, cx			;chyba ze skonczyl sie bufor wtedy skacze do buffer_fin
+			jz	buffer_fin
+
+		parseline_fin:
+			push	cx						;pushuje cx by uzyc go nastepnie jako flagi
+			xor	cx, cx						;na poczatku flaga jest zerem
+
+			call	isASCII						;pokolei sprawdzam poprawnosc wprowadzonych
+			call	ispropercolor					;danych, jesli ktores z nich nie sa
+			call	ispropersize					;poprawne ustawiam odpowiednie bity
+			call	isproperx					;w rejestrze cx
+			call	ispropery
+
+			test	cl, cl						;sprawdzam czy sa jakies niepoprawne dane
+			jz	display						;jesli nie to wyswietlam znak
+
+			call	countline					;logowanie numeru linijki gktora jest niepoprawna
+			xor	ax, ax
+			mov	al, byte ptr ds:[numofsigns]
+			mov	dx, offset Linia
+			call	writetofile
+	
+			parseline_fin_err1:					;znak nie jest znakiem ASCII
+				test	cl, 1d
+				jz	parseline_fin_err2
+				mov	al, byte ptr ds:[SignFormatException]
+				mov	dx, offset SignFormatException + 1
+				call	writetofile
+
+			parseline_fin_err2:					;niepoprwanie wprowadzony kolor
+				test	cl, 2d
+				jz	parseline_fin_err3
+				mov	al, byte ptr ds:[ColorFormatException]
+				mov	dx, offset ColorFormatException + 1
+				call	writetofile
+
+			parseline_fin_err3:					;niepoprawny rozmiar
+				test	cl, 4d
+				jz	parseline_fin_err4
+				mov	al, byte ptr ds:[SizeFormatException]
+				mov	dx, offset SizeFormatException + 1
+				call	writetofile
+
+			parseline_fin_err4:					;x nie jest liczba
+				test	cl, 8d
+				jz	parseline_fin_err5
+				mov	al, byte ptr ds:[XFormatException1]
+				mov	dx, offset XFormatException1 + 1
+				call	writetofile
+
+			parseline_fin_err5:					;x wychodzi poza zakres
+				test	cl, 16d
+				jz	parseline_fin_err6
+				mov	al, byte ptr ds:[XFormatException2]
+				mov	dx, offset XFormatException2 + 1
+				call	writetofile
+
+			parseline_fin_err6:					;y nie jest liczba
+				test	cl, 32d
+				jz	parseline_fin_err7
+				mov	al, byte ptr ds:[YFormatException1]
+				mov	dx, offset YFormatException1 + 1
+				call	writetofile
+
+			parseline_fin_err7:					;y wychodzi poza zakres
+				test	cl, 64d
+				jz	parseline_fin_err_fin
+				mov	al, byte ptr ds:[YFormatException2]
+				mov	dx, offset YFormatException2 + 1
+				call	writetofile
+
+			parseline_fin_err_fin:					;koniec wypisywania bledow, sciagamy cx i wczytujemy kolejna linie
+				inc	si
+				xor 	bx, bx
+				pop	cx
+				jmp	readline
+
+	buffer_fin:							;jesli skonczyl sie bufor sciagamy wartosci ze stosu i powracamy z procedury
+		pop	si
+		pop	dx
+		pop	cx
+		pop	ax
+		ret
+
+	line_fin:						;jesli skonczylem wczytywac linijke bez wyswietlenia znaku znaczy ze nie jest
+								;poprawna, wiec loguje blad i wczytuje kolejna linijke
+		call	countline				 
+		xor	ax, ax					
+		mov	al, byte ptr ds:[numofsigns]
+		mov	dx, offset Linia
+		call	writetofile
+
+		mov	al, byte ptr ds:[LineFormatException]		;logowanie odpowiedniego komunikatu o bledzie
+		mov	dx, offset LineFormatException + 1
+		call	writetofile
+
+		inc	si
+		xor	bx, bx						;jesli nie wczytujemy kolejna linie
+		jmp	readline
+
+	display:						;wyswietlam dany znak i skacze wczytywac kolejna linijke
+		call	paint
+		inc	si
+		xor	bx, bx
+		pop	cx
+		jmp	readline
+;===========================================================================================================================================================
+paint:					;procedura rysuje znak w trybie graficznym
+	push	ax
+	push	bx
+	push	cx
+	push	dx
+	push	si
+	push	di
+	push	es
+
+	mov	ax, 0A000h		;ustawiamy poczatek obszaru pamieci w es jako punkt odniesienia (0,0), poniewaz 320*200 < 65535 to cala pamiec
+	mov	es, ax			;obrazujaca ekran miesci sie w jednym segmencie, punkt (0,0) jest lewym gornym rogiem
+
+	mov	dx, word ptr ds:[Y]	;obliczamy polozenie wskazywanego punktu, poniewaz zgodnie z zadaniem poczatek ukladu wspolrzednych to
+	mov	ax, 199d		;lewy dolny rog musimy wykonac nastepujace operacje: wczytac na ktory wiersz wskazuje punkt (Y), odjac
+	sub	ax, dx			;jego wartosc od 199 wtedy otzymujemy polozenie y w ukladzie z poczatkiem w lewym gornym rogu, x pozostaje ten sam
+	mov	word ptr ds:[Y], ax
+
+	xor	bx, bx			;wczytujemy matryce danego znaku
+	mov	bl, byte ptr ds:[Sign]	;by to zrobic wczytujemy znak z pamieci odejmujemy 33 oraz mnozymy razy 2 by znalezc jego polozenie w tablicy
+	sub	bl, 33d
+	shl	bx, 1
+	add	bx, offset ASCIItab
+	mov	bx, word ptr ds:[bx]	;wczytujemy offset do matrycy
+
+	xor	dx, dx
+	mov	dh, 8d				;w dh przetrzymujemy rozmiar matrycy
+	mov	dl, byte ptr ds:[Signsize]	;w dl przetrzymujemy rozmiar znaku
+
+	printing:				;drukowanie znaku
+		mov	si, word ptr ds:[Y]	;wczytuje polozenie y do si
+		mov	ax, 8d			;aby przenosic sie na nastepne linijki obliczam ktora linijke znaku musze teraz zamalowac
+		sub	al, dh			;czyli od 8 (rozmiar matrycy) odejmuje ile pozostalo do zamalowania i mnoze razy rozmiar znaku
+		mul	dl
+		add	si, ax			;uzyskany wynik dodaje do si i mam wiersz ktory nalezy zamalowac
+		cmp	si, 199d		;sprawdzam czy nie wyszlem poza zakres
+		jg	paint_fin		;jesli tak koncze malowanie
+
+		mov	cl, byte ptr ds:[bx]	;jesli nie wczytuje linijke matrycy ktora posluzy jako wzor co malowac
+		push	dx
+		mov	dh, 8d			;ustawiam dh na 8d by wiedziec ile skokow po kolumnach zrobic			
+
+		printing_horizontal:			;jesli juz ustalilem wiersz teraz nalezy ustalic kolumne
+			mov	di, word ptr ds:[X]	;wczytuje polozenie x do di
+			mov	ax, 8d			;aby przenosic sie na nastepne kolumny obliczam ktora kolumne znaku musze teraz zamalowac
+			sub	al, dh			;czyli od 8 (rozmiar matrycy) odejmuje ile kolumn mi zostalo do zamalowania i mnoze razy
+			mul	dl			;rozmiar znaku
+			add	di, ax			;otrzymana warrtosc dodaje do di i mam kolumne ktora nalezy zamalowac
+			cmp	di, 319d		;sprawdzam czy nie wyszlem poza zakres
+			jg	printing_vertical	;jesli tak koncze malowac kolumny i musze skoczyc na nastepny wiersz
+	
+			push	si
+			push	dx
+
+			test	cl, 128d			;sprawdzamy czy siodmy bit cl jest zerem, jesli tak nie musimy malowac wiec
+			jz	printing_horizontal_vert	;przeskakujemy malowanie i skaczemy do kolejnej kolumny
+
+			printing_square:				;zamalowujemy kwadrat ktorego gornym lewym rogiem jest punkt (x,y)
+				cmp	si, 199d			;sprawdzam czy nie wyszlem poza zakres
+				jg	printing_horizontal_vert	;jesli tak skacze do kolejnej kolumny
+
+				push	di
+				push	dx
+				mov	dl, byte ptr ds:[Signsize]	;zapamietuje wielkosc kwadratu
+
+				printing_square_horiz:			;malowanie kolumn w wierszu w kwadracie
+					cmp	di, 319d		;sprawdzam czy nie wyszlem poza zakres
+					jg	printing_square_vert	;jesli tak to skacze do nastepnego wiersza kwadratu
+
+					push	dx
+					push	di
+
+					mov	ax, si			;znajac polozenie punktu do zamalowania, nalezy obliczyc jego miejsce w pamieci
+					mov	dx, 320d		;w tym celu mnoze wiersz razy 320 (poniewaz wiersz < 200 wiec wynik < 65535 
+					mul	dx			;i zjamuje nie wiecej niz 16bitow wiec po mnozeniu interesuje nas tylko ax)
+					add	ax, di			;i dodajemy do tego kolumne
+					mov	di, ax				;tak obliczona komorke pamieci zapamietujemy w di
+					mov	al, byte ptr ds:[Color]		;a do al wczytujemy kolor znaku
+					mov	byte ptr es:[di], al		;ktory nastepnie zapisujemy do odpowieniej komorki w pamieci
+
+					pop	di
+					pop	dx
+
+					inc	di			;po zamalowaniu jendej kolumny skacze malowac druga
+					dec	dl			;zmniejszajac jednoczesnie ilosc pozostalych kolumn do zamalowania
+					test	dl, dl			;jesli zamalowalem wszystkie skacze do nastepnego wiersza kwadratu
+					jnz	printing_square_horiz	;jesli nie skacze na kolejna kolumne w danym wierszu
+
+				printing_square_vert:			;jesli zamalowalem juz dany wiersz kwadratu skacze do kolejnego
+					pop	dx			;sciagam wartosci ze stosu
+					pop	di
+					inc	si			;zwiekszam si (wiesz)
+					dec	dl			;zmiejszajac jednoczesnie ilosc pozostalych wierszy do zamalunku
+					test	dl, dl			;jesli zamalowalem juz wszystkie koncze malowac kwadrat
+					jnz	printing_square		;jesli nie maluje dalej
+
+			printing_horizontal_vert:			;jesli zamalowalismy juz kolumne skaczemy do kolejnej
+				pop	dx				;scagamy wartosci ze stosu
+				pop	si
+				shl	cl, 1				;przesuwamy bitowo cl w lewo by wczytac czy malowac kolejna kolumne
+				dec	dh				;zmiejszamy ilosc kolumn do zamalowania
+				test	dh, dh				;sprawdzam czy nie zamalowalem juz wszystkich
+				jnz	printing_horizontal		;jesli nie maluje dalej, jesli tak skacze do kolejnego wiersza	
+
+		printing_vertical:				;jesli skonczylem malowac kolumny skacze na nastepny wiersz
+			pop	dx				;sciagam wartosc dx ze sotsu
+			inc	bx				;zwiekszam bx (koleny wiersz matrycy)
+			dec	dh				;zmniejszam ilosc wierszy do zamalowania
+			test	dh, dh				;sprawdzam czy nie zamalowalem juz wszystkich
+			jnz	printing			;jesli nie skacze do printing by kontynuowac malowanie, jesli tak koncze procedure
+
+	paint_fin:				;po skonczonym rysowaniu sciagam wartosci ze stosu i powracam z procedury
+		pop	es
+		pop	di
+		pop	si
+		pop	dx
+		pop	cx
+		pop	bx
+		pop	ax
+		ret
+;===========================================================================================================================================================
+countline:						;procedura zamienia numer linijki w ktorej jest blad na string zapisuje w odpowiednim miejscu
+	push	di					;wskazanym przez di i liczy dlugosc tego stringu
+	push	si
+	push	bx
+	push	cx
+	push	ax
+	push	dx
+
+	mov	ax, di					;wrzucam numer linijki do ax gdyz aby ja zamienic na stringa bede dzielic 
+	mov	di, offset Linia + 8			;do di wrzucam adres poczatku miesjca gdzie bede zapisywal numer lini jako string
+	xor	cx, cx					;zerujemy cx, by w cl liczyc ile cyfr ma liczba
+	or	ch, 8d					;w ch bede liczyl ile znakow ma cala linijka -> napis Linia [numer]
+	mov	si, offset bufor			;do buforu bedziemy poczatkowo wrzucac cyfry, reszty z dzielenia
+	mov	bx, 10d					;dzielnik, dzielimy przez 10 aby uzyskac po kolei cyfry
+
+	count_loop:		
+		xor	dx, dx				;w dx zapisywana jest reszta z dzielenia liczby 32 bitowej przez 16
+		div	bx
+		mov	byte ptr cs:[si], dl		;zapisuje cyfry po kolei do buforu
+		inc	si				;zwiekszam indeks buforu
+		inc	cl				;zwiekszam ilosc wczytanych znakow
+		inc	ch
+		test	ax, ax				;sprawdzam czy nie zamienilem juz calej liczby
+		jnz	count_loop
+
+	dec	si
+	mov	byte ptr ds:[numofsigns], ch		;zapisujemy ile znakow ma cala linijka
+	xor	ch, ch					;i zerujemy ch aby w cx pozostalo tylko cl czyli ilosc cyfr w danej liczbie
+
+	count_save:					;jesli zamienilem juz cala cyfre nalezy ja odpowienio wpisac do miejsca ktore wskazuje di
+		mov	al, byte ptr cs:[si]		;po kolei zapisujemy znaki z bufora
+		add	al, '0'				;zmieniajac je najpierw na cyfry
+		dec	si
+		mov	byte ptr ds:[di], al
+		inc	di
+		loop	count_save 
+
+	pop	dx					;po wszystkim sciagamy wartosci ze stosu i powracamy z procedury
+	pop	ax
+	pop	cx
+	pop	bx
+	pop	si
+	pop	di
+	ret
+
+bufor	db	20 dup(0d)
+;===========================================================================================================================================================
+readfromfile:					;procedura odczytuje okreslona ilosc bytow do odczytu (rejestr cx) z pliku FileIn i zwraca ilosc odczytanych
+						;bytow w rejestrze ax (jesli ax=0 lub ax<cx skonczylismy odczyt pliku)
+	push	bx				
+	push	dx
+						;input:					output:
+	mov	bx, word ptr ds:[FileIn]	;BX = file handle			AX = count of bytes actually read
+	mov	dx, offset Buffer		;DS:DX = memory buffer address		If AX=0 or AX < CX, EOF
+	mov	ah, 03Fh			;AH = 3Fh -> function read a file	if CF=1, AX=error code (5 -> access denied, 6 ->invalid file handle)
+	int	021h
+
+	jc	readfromfile_err		;sprawdzamy czy nie wystapil blad odczytu (jesli tak to CF=1, jesli nie to CF=0)
+
+	pop	dx				;jesli odczyt przebiegl bez bledow sciagamy wartosci ze stosu i powracamy z procedury
+	pop	bx
+	ret
+
+	readfromfile_err:					;jesli nie moglismy czytac z pliku, wystapil blad, zamykamy otwarte pliki,
+								;wypisujemy odpowiedni komunikat oraz konczymy dzialanie programu
+		mov 	bx, word ptr ds:[FileIn]
+		call 	closefile				;zamykamy plik do odczytu
+		mov 	bx, word ptr ds:[Stderr]
+		call 	closefile				;zamykamy plik Stderr.txt
+		mov	ax, offset CantReadFileException	;wypisanie odpowiedniego komunikatu i zakonczenie pracy programu
+		call 	exception
+
+;===========================================================================================================================================================
+writetofile:					;procedura zapisuje okreslona ilosc bytow (przekazana do procedury w rejestrze ax)
+						;do pliku wyjsciowego, poczatek stringu w dx
+	push	ax
+	push	bx				
+	push	cx
+	push	dx
+						;input:					output:
+	mov	cx, ax				;CX = number of bytes to write
+	mov	bx, word ptr ds:[Stderr]	;BX = file handle			AX = count of bytes written
+						;DS:DX = data address			If AX < CX, error (disk full)
+	mov	ah, 040h			;AH = 040h -> function write to file	if CF=1, AX=error code (5 -> access denied, 6 ->invalid file handle)
+	int	021h
+
+	jc	writetofile_err			;sprawdzamy czy nie wystapil blad zapisu (jesli tak to CF=1, jesli nie to CF=0)
+
+	cmp	ax, cx				;sprawdzamy czy zapisalismy wszystkie znaki jesli nie informujemy uzytkownika o zapelnieniu dysku
+	jne	diskfull_err			;i niemoznosci w zwiazku z tym dalszego zapisu wiec konczymy program
+
+	pop	dx				;jesli zapis przebiegl bez bledow sciagamy wartosci ze stosu i powracamy z procedury
+	pop	cx
+	pop	bx
+	pop	ax
+	ret
+
+	writetofile_err:
+		mov 	bx, word ptr ds:[FileIn]
+		call 	closefile				;zamykamy plik do odczytu
+		mov 	bx, word ptr ds:[Stderr]
+		call 	closefile				;zamykamy plik do zapisu
+		mov	ax, offset CantWrttoFileException	;wypisanie odpowiedniego komunikatu i zakonczenie pracy programu
+		call 	exception
+
+	diskfull_err:
+		mov 	bx, word ptr ds:[FileIn]
+		call 	closefile				;zamykamy plik do odczytu
+		mov 	bx, word ptr ds:[Stderr]
+		call 	closefile				;zamykamy plik do zapisu
+		mov	ax, offset FullDiskException		;wypisanie odpowiedniego komunikatu i zakonczenie pracy programu
+		call 	exception
+;===========================================================================================================================================================
+isASCII:				;procedura sprawdza czy znak zapisany w Sign jest znakiem ASCII
+	push	ax
+
+	test	bl, 1d
+	jnz	isNotASCII
+	mov	al, byte ptr ds:[Sign]
+	cmp	al, 0d			;sprawdzamy czy znak jest >=0 i <=127 jesli tak to jest to ASCII jesli nie to nie jest ASCII
+	jl	isNotASCII
+	cmp	al, 127d
+	jg	isNotASCII
+
+	pop	ax
+	ret
+
+	isNotASCII:			
+		or	cl, 1d		;jesli nie jest znakiem ASCII ustawiamy bit zerowy cl na 1
+		pop	ax
+		ret				
+;===========================================================================================================================================================
+ispropercolor:					;procedura sprawdza czy znak w Color jest prawidlowy (b -> bialy, c -> czerwony, z -> zielony, n -> niebieski)
+	push	ax
+	
+	mov	al, byte ptr ds:[Color]
+	call	ifIsUpperCaseConvertToLower
+
+	test	bl, 2d
+	jnz	unpropercolor
+
+	mov	byte ptr ds:[Color], 15d		
+	cmp	al, 'b'				;sprawdzamy czy znakiem jest 'b' 
+	je	propercolor_fin
+
+	mov	byte ptr ds:[Color], 40d
+	cmp	al, 'c'				;sprawdzamy czy znakiem jest 'c' 
+	je	propercolor_fin
+
+	mov	byte ptr ds:[Color], 47d
+	cmp	al, 'z'				;sprawdzamy czy znakiem jest 'z' 
+	je	propercolor_fin
+
+	mov	byte ptr ds:[Color], 33d
+	cmp	al, 'n'				;sprawdzamy czy znakiem jest 'n' 
+	je	propercolor_fin
+
+	unpropercolor:
+		or	cl, 2d				;jesli kolor nie jest prawidlowy ustawiamy pierwszy bit cl na jeden
+		pop	ax
+		ret	
+
+	propercolor_fin:				;jesli kolor jest poprawny sciagamy wartosc ze stosu i powracamy z procedury
+		pop	ax
+		ret	
+;===========================================================================================================================================================		
+ispropersize:					;procedura sprawdza czy znak zapisany w Size jest z prawidlowego zakresu powiekszenia, 
+	push	ax
+
+	test	bl, 4d
+	jnz	unpropersize
+	mov	al, byte ptr ds:[Signsize]
+	cmp	al, '1'				;sprawdzamy czy znak jest >=1 i <=4
+	jl	unpropersize
+	cmp	al, '4'
+	jg	unpropersize
+	sub	al, '0'				;jesli tak to odejmujemy od niego '0' by otrzymac ze znaku cyfre i zapisujemy ja w Size
+	mov	byte ptr ds:[Signsize], al
+	
+	pop	ax
+	ret
+
+	unpropersize:			
+		or	cl, 4d			;jesli nie jest prawidlowy ustaiwamy drugi bit cl na 1
+		pop	ax
+		ret
+;===========================================================================================================================================================
+isproperx:					;procedura sprawdza czy wspolrzedna x jest prawidlowa
+	push	ax
+	push	bx
+	push	dx
+
+	mov	bx, offset Signlength		;zamieniamy string na liczbe, liczba w dx
+	call	getnum
+	test	al, al				;i sprawdzamy czy jest to liczba czy nie
+	jnz	unproperx
+
+	cmp	dx, 319d
+	ja	x_outofrange
+	mov	word ptr ds:[X], dx	;jesli miesci sie w zakresie to zapisujemy do X
+	pop	dx			;sciagamy wartosci ze stosu oraz powracamy z procedury
+	pop	bx
+	pop	ax
+	ret
+
+	unproperx:			;jesli nie jest nawet liczba ustawiamy trzeci bit cl na 1 i powracamy z procedury
+		or	cl, 8d
+		pop	dx
+		pop	bx
+		pop	ax			
+		ret
+
+	x_outofrange:			;jesli nie jest z zadanego zakresu ustawiamy czwarty bit na jeden i powracamy z procedury
+		or	cl, 16d					
+		pop	dx		
+		pop	bx
+		pop	ax
+		ret
+;===========================================================================================================================================================
+ispropery:						;procedura sprawdza czy wspolrzedna y jest prawidlowa
+	push	ax
+	push	bx
+	push	dx
+
+	mov	bx, offset Signwidth		;zamieniamy string na liczbe, liczba w dx
+	call	getnum
+	test	al, al				;i sprawdzamy czy jest to liczba czy nie
+	jnz	unpropery
+
+	test	bh, 128d
+	jnz	unpropery
+
+	cmp	dx, 199d
+	ja	y_outofrange
+	mov	word ptr ds:[Y], dx	;jesli miesci sie w zakresie to zapisujemy do Y
+	pop	dx			;sciagamy wartosci ze stosu oraz powracamy z procedury
+	pop	bx
+	pop	ax
+	ret
+
+	unpropery:			;jesli nie jest nawet liczba ustawiamy piaty bit cl na 1 i powracamy z procedury
+		or	cl, 32d
+		pop	dx
+		pop	bx
+		pop	ax			
+		ret
+
+	y_outofrange:			;jesli nie jest z zadanego zakresu ustawiamy szosty bit na jeden i powracamy z procedury
+		or	cl, 64d					
+		pop	dx		
+		pop	bx
+		pop	ax
+		ret
+;===========================================================================================================================================================
+getnum:				;peocedura zamienia string (poczatek w bx) na liczbe, jesli sie nie da zwraca 1 w al jesli sie da zwraca 0 w al i liczbe w dx
+	push	bx
+	push	cx
+
+	xor	ax, ax
+	xor	cx, cx
+	xor	dx, dx
+
+	mov	al, byte ptr ds:[bx]	;wczytuje pierwsza cyfre
+	mov	byte ptr ds:[bx], 0d	;nullujac przy tym znak w stringu
+	inc	bx
+	cmp	al, '0'			;sprawdzam czy rzeczywiscie jest to cyfra
+	jb	notdigit
+	cmp	al, '9'
+	ja	notdigit		
+	sub	al, '0'			;jesli tak odejmuje od niej '0'
+	add	dx, ax			;idodaje do dx
+
+	getnum_loop:				;nastepnie dodaje kolejne cyfry uprzednio mnozac dx razy 10
+
+		mov	al, byte ptr ds:[bx]
+		mov	byte ptr ds:[bx], 0d
+		inc	bx
+		test	al, al			;jesli doszlismy do nulla to znaczy ze skonczylismy wczytywac string 
+		jz	getnum_fin
+		cmp	al, '0'
+		jb	notdigit
+		cmp	al, '9'
+		ja	notdigit
+		sub	al, '0'
+		mov	cx, dx			;aby wymnozyc przez 10 mnoze razy 8 dx i razy 2 cx a pozniej dodaje cx do dx
+		shl	dx, 1
+		shl	dx, 1
+		shl	dx, 1
+		shl	cx, 1
+		add	dx, cx
+		add	dl, al			;i dodaje kolejna cyfre
+		jmp	getnum_loop
+
+	notdigit:				;jesli nie jest to liczba zwracam 1 w ax
+		xor	ax, ax
+		or	al, 1d
+		pop	cx
+		pop	bx
+		ret
+
+	getnum_fin:				;jesli jest to liczba zwracam 0 w ax i liczbe w dx
+		xor	ax, ax
+		pop	cx
+		pop	bx
+		ret
+;===========================================================================================================================================================
+cmdlineparser:						;procedura wczytuje argument z lini polecen i zapisuje nazwe pliku.wej do Filename 
+	push	ax					;zapisujemy na stos rejestry ktorych wartosci nie chcemy nadpisac
+	push	bx
+	push	cx
+	push	dx
+	push	ds
+	push	es
+
+	mov	ah, 062h 				;pobranie Program Segment Prefix do bx
+        int	021h
+	mov	ds, bx 					;ustawienie adresu PSP w ds
+
+	mov	ax, seg dane1
+	mov	es, ax
+
+	xor	cx, cx
+        mov	cl, byte ptr ds:[080h]			;zapamietujemy liczbe znakow lini komend w cl
+	test	cl, cl					;sprawdzamy czy wogole podano argumenty
+	jnz	parseargs				;jesli tak to skaczemy do parseargs
+
+	mov	ax, es					;putstr uzyte w exception uzywa ds wiec musimy spowrotem ustawic ds na dane1
+	mov	ds, ax		
+	mov	ax, offset NoArgException		;jesli nie wyswietlamy komunikat o bledzie i konczymy dzialanie programu
+	call	exception					
+
+	parseargs:	
+		mov	si, 081h			;ustawiamy si na poczatek stringu z argumentami aby z niego czytac znak po znaku
+		mov	bx, offset Filename		;ustawiamy bx na poczatek stringu z przyszla nazwa pliku by do niego zapisywac
+		call	ignorewhitespaces		;przewijamy biale znaki jesli takowe wystapily na poczatku stringu z argumentami
+
+		call	iswhitespace			;sprawdzamy czy ostatnio wczytany znak w al jest bialy czy nie
+		test	dl, dl				;jesli nie to skaczemy do filename_loop
+		jz	filename_loop
+
+		mov	ax, es				;putstr uzyte w exception uzywa ds wiec musimy spowrotem ustawic ds na dane1
+		mov	ds, ax
+		mov	ax, offset NoArgException	;jesli tak to wyswietlamy komunikat o bledzie i konczymy prace programu
+		call	exception								
+
+	filename_loop:					;zapisujemy nazwe pliku wejsciowego do Filename
+		mov	byte ptr es:[bx], al		;zapisujemy nazwe pliku znak po znaku
+		inc	bx
+		test	cx, cx				;sprawdzamy czy nie wczytalismy juz wszystkich znakow,
+		jz	cmdlineparser_fin		;jesli tak konczymy dzialanie parsera
+		inc	si				;jesli nie wczytujemy kolejny znak
+		mov	al, byte ptr ds:[si]
+		dec	cx
+		call	iswhitespace			;i sprawdzamy czy nie jest bialy, jesli jest to znaczy ze wczytalismy juz nazwe pliku.wej
+		test	dl, dl				;wiec skaczemy do toomanyargs by sprawdzic czy nie podano za duzo argumentow
+		jnz	toomanyargs
+		jmp	filename_loop		
+						
+	toomanyargs:					;sprawdzamy czy nie podano czasem zbyt duzo argumentow
+		inc	cx				;zwiekszamy cl poniewaz zanim tu wskoczylismy zmiejszylismy go w filename_loop
+							;a przeciez nie wczytalismy tego znaku nigdzie
+		call	ignorewhitespaces		;pomijamy biale znaki 
+
+		call	iswhitespace			;jesli nie ma wiecej znakow konczymy procedure wczytawczy wszystkie argumenty 
+		test	dl, dl				
+		jnz	cmdlineparser_fin
+
+		mov	ax, es				;putstr uzyte w exception uzywa ds wiec musimy spowrotem ustawic ds na dane1
+		mov	ds, ax
+		mov	ax, offset TooManyArgException	;w przeciwnym razie wypisujemy komuniakta o bledzie (podano zbyt duzo argumentow)
+		call	exception					
+
+	cmdlineparser_fin:				;zapamietujemy dlugosc nazwy, sciagamy wartosci ze stosu i powracamy z procedury
+		sub	bx, offset Filename
+		mov	word ptr es:[Filenamelength], bx
+
+		pop	es
+		pop	ds
+		pop	dx				
+		pop	cx
+		pop	bx
+		pop	ax
+		ret
+;===========================================================================================================================================================
+ignorewhitespaces:				;procedura pomija biale znaki w stringu (adres do miejsca w stringu w si) i zwraca indeks
+						;pierwszego niebialego znaku w si, cx-ilosc pozostalych znakow w stringu, al-ostatnio wczytany znak			
+	push	dx				
+
+	mov	al, byte ptr ds:[si]		;wczytanie pierwszego znaku do al 
+	dec	cx				;przy kazdym wczytywaniu zmniejszamy ilosc mozliwych do wczytania znakow
+	call	iswhitespace			;sprawdzamy czy znak w al jest bialym znakiem
+	test	dl, dl				
+	jz	ignore_fin			;jesli nie jest bialym znakiem powracamy z procedury z biezaca wartoscia si i cx
+
+	ignore_loop:				;jesli jest bialym znakiem to wczytujemy kolejne znaki dopoki nie natrafimy na niebialy znak
+		test	cx, cx			;za kazdym razem sprawdzamy czy nie wczytalismy juz wszystkich znakow
+		jz	ignore_fin		;jesli tak to konczymy procedure
+
+		inc	si			;jesli nie wczytujemy dalej zmniejszajac przy kazdym wczytaniu cx
+		mov	al, byte ptr ds:[si]
+		dec	cx
+		
+		call	iswhitespace		;sprawdzanie czy wczytane znak jest bialym znakiem
+		test	dl, dl
+		jnz	ignore_loop
+
+	ignore_fin:				;sciagamy wartosci ze stosu i powracamy z procedury
+		pop	dx
+		ret
+;===========================================================================================================================================================
+iswhitespace:				;procedura sprawdza czy znak w al jest bialym znakiem (spacja lub tab) jesli nie zwraca w dl 0 jesli tak zwraca 1
+	cmp	al, 032d		;sprawdzam czy znak w al jest spacja
+	je	whitespace
+	cmp	al, 09d			;sprawdzam czy znak w al jest tabem
+	je	whitespace
+	xor	dl, dl			;jesli nie jest bialym znakiem zerujemy dl (jesli wczesniej byl bialym znakiem to w dl pozostalo 1 
+	ret				;i nalezy to wyzerowac) i powracamy z procedury
+
+	whitespace:			;jesli jest bialym znakiem zmieniam wartosc dl z 0 na 1 i powracam z procedury
+		or	dl, 1d
+		ret
+;===========================================================================================================================================================
+ignoreverysigns:				;procedura pomija znaki w stringu (adres do miejsca w stringu w si) i zwraca indeks
+						;pierwszego znaku w si, cx-ilosc pozostalych znakow w stringu, al-ostatnio wczytany znak			
+	push	dx				
+
+	mov	al, byte ptr ds:[si]		;wczytanie pierwszego znaku do al 
+	dec	cx				;przy kazdym wczytywaniu zmniejszamy ilosc mozliwych do wczytania znakow
+	cmp	al, 13d
+	je	ignoresigne_fin
+
+	ignoresigne_loop:			;jesli jest bialym znakiem to wczytujemy kolejne znaki dopoki nie natrafimy na niebialy znak
+		test	cx, cx			;za kazdym razem sprawdzamy czy nie wczytalismy juz wszystkich znakow
+		jz	ignoresign_fin		;jesli tak to konczymy procedure
+
+		inc	si			;jesli nie wczytujemy dalej zmniejszajac przy kazdym wczytaniu cx
+		mov	al, byte ptr ds:[si]
+		dec	cx
+		
+		cmp	al, 13d
+		jne	ignoresigne_loop
+
+	ignoresigne_fin:				;sciagamy wartosci ze stosu i powracamy z procedury
+		pop	dx
+		ret
+;===========================================================================================================================================================
+ignoresigns:					;procedura pomija drukowalne znaki w stringu (adres do miejsca w stringu w si) i zwraca indeks
+						;pierwszego znaku w si, cx-ilosc pozostalych znakow w stringu, al-ostatnio wczytany znak			
+	push	dx				
+
+	mov	al, byte ptr ds:[si]		;wczytanie pierwszego znaku do al 
+	dec	cx				;przy kazdym wczytywaniu zmniejszamy ilosc mozliwych do wczytania znakow
+	call	issign				;sprawdzamy czy znak w al jest znakiem
+	test	dl, dl				
+	jz	ignoresign_fin			;jesli nie jest znakiem dtukwoalnym powracamy z procedury z biezaca wartoscia si i cx
+
+	ignoresign_loop:			;jesli jest bialym znakiem to wczytujemy kolejne znaki dopoki nie natrafimy na niedrukowalny znak
+		test	cx, cx			;za kazdym razem sprawdzamy czy nie wczytalismy juz wszystkich znakow
+		jz	ignoresign_fin		;jesli tak to konczymy procedure
+
+		inc	si			;jesli nie wczytujemy dalej zmniejszajac przy kazdym wczytaniu cx
+		mov	al, byte ptr ds:[si]
+		dec	cx
+		
+		call	issign			;sprawdzanie czy wczytane znak jest znakiem drukowalnym
+		test	dl, dl
+		jnz	ignoresign_loop
+
+	ignoresign_fin:				;sciagamy wartosci ze stosu i powracamy z procedury
+		pop	dx
+		ret
+;===========================================================================================================================================================
+issign:				;procedura sprawdza czy znak w al jest znakiem drukowalnym (pomijajac spacje) jesli nie zwraca w dl 0 jesli tak zwraca 1
+	cmp	al, 33d		
+	jb	notsign
+	cmp	al, 126d		
+	ja	notsign
+	or	dl, 1d			;jesli jest znakiem zmieniam wartosc dl z 0 na 1 i powracam z procedury
+	ret				
+
+	notsign:			;jesli nie jest znakiem zerujemy dl (jesli wczesniej byl znakiem to w dl pozostalo 1 i nalezy to wyzerowac)
+		xor	dl, dl
+		ret
+;===========================================================================================================================================================
+putstr:						;procedura wypisuje dany string wypisujac po jednym znaku, wskaznik na poczatek stringu w ax
+	push	ax				;w czasie trwania procedury zmieniane beda rejestry ax i dx wiec zapisujemy ich wartosci na stosie 
+	push	bx				;aby przy powrocie z procedury mozna bylo je odzyskac
+
+	mov	bx, ax				;wskaznik z ax nalezy przeniesc do bx, ktory bedzie robil za indeks stringu, string jako tablica charow
+	mov	al, byte ptr ds:[bx]		;kopiujemy do al pierwszy znak ze stringu
+
+	putstr_loop:				;petla wypisuje po kolei znaki az dojdzie do konca stringu
+		test	al, al			;sprawdzamy czy dany znak jest znakiem konca stringu - 0 (test ustawia odpowiednia flage bez zmiany al) 
+		jz	putstr_fin		;jesli tak skaczemy do konca procedury
+		call	putchar			;jesli nie to wypisujemy dany znak wywolujac procedure putchar
+		inc	bx			;i wczytujemy kolejny
+		mov	al, byte ptr ds:[bx]
+		jmp	putstr_loop
+
+	putstr_fin:				;zdejmujemy wartosci ze stosu i powracamy z procedury
+		pop	bx
+		pop	ax
+		ret
+;===========================================================================================================================================================
+putchar:					;procedura wypisujaca jeden znak, znak zostaje przekazany do procedury w al
+	push	ax				;w czasie trwania procedury zmieniane beda rejestry ax i dx wiec zapisujemy ich wartosci na stosie 
+	push	dx				;aby przy powrocie z procedury mozna bylo je odzyskac
+
+	mov	dl, al				;przeslanie znaku z al do dl (argumenty do wywolania funkcji systemowej int 21h: 2h musza byc w dl) 
+	mov	ah, 2h				;wyspecyfikowanie o jaka procedure funkcji systemowej nam chodzi
+	int	21h				;przerwanie z wypisaniem znaku
+
+	pop	dx				;zdjecie wartosci ze stosu i powrot z procedury
+	pop	ax
+	ret
+;===========================================================================================================================================================
+getstr:						;procedura wczytujaca wprowadzony przez uzytkownika tekst, wskaznik na poczatek buffora
+	push	ax				;w czasie trwania procedury zmieniane beda rejestry ax i dx wiec zapisujemy ich wartosci na stosie
+	push	dx				;aby przy powrocie z procedury mozna bylo je odzyskac
+	push	bx
+
+	mov	bx, ax				;kopiuje wartosc ax do bx by znac poczatek bufora
+
+	mov	dx, ax				;przeslanie adresu buffora z ax do dx (argumenty do wywolania 0Ah musza byc w dx) 		
+	mov	ah, 0Ah				;wyspecyfikowanie o jaka procedure nam chodzi
+	int	21h				;przerwanie z wczytaniem stringu
+
+	getstr_loop:				;przeszukuje wczytany string az znajde 13d i zamieniam na 0d - zgodnie z przyjeta przeze mnie konwencja
+		mov	al, byte ptr ds:[bx]	;stringi beda konczyc sie 0d by wszystkie procedury operujace na stringach byly kompatybilne
+		cmp	al, 13d			;(m.in putstr wypisuje string konczacy sie tylko 0d)
+		je	getstr_fin			
+		inc	bx
+		jmp	getstr_loop
+	
+	getstr_fin:				;zamienienie 13d na 0d oraz zdjecie wartosci ze stosu i powrot z procedury
+		mov	byte ptr ds:[bx], 0d
+		pop	bx		
+		pop	dx				
+		pop	ax
+		ret
+;===========================================================================================================================================================
+strcmp:						;procedura porownoje 2 stringi, jesli sa sobie rowne zwraca 0 jesli nie sa rowne zwraca 1 zapisane w al
+	push	si				;si to wskaznik na poczatek stringu pierwszego do ktorego bedziemy porownywac string drugi
+	push	di				;di to wskaznik na poczatek stringu drugiego ktory bedziemy przyrownywac do pierwszego
+
+	strcmp_loop:
+		mov	al, byte ptr ds:[si]		;kopiujemy litere z pierwszego stringu do al
+		call	ifIsUpperCaseConvertToLower	;jesli litera jest duza zamieniamy ja na mala
+		mov	ah, al				;i przenosimy do ah
+
+		mov	al, byte ptr ds:[di]		;kopiujemy litere z drugiego stringu do al
+		call	ifIsUpperCaseConvertToLower	;jesli litera z drugiego stringu jest duza zamieniamy ja na mala
+
+		cmp	ah, al				;i porownujemy obie litery
+		jne	strcmp_notequal			;jesli nie sa rowne skaczemy do strcmp_notequal
+		test	ah, ah				;jesli skonczyl sie pierwszy string do ktorego porownujemy drugi 
+		jz	strcmp_fin			;to skaczemy do konca procedury
+		inc	si				;w przeciwnym wypadku zwiekszamy si i di by wskazywaly na kolajna litere
+		inc	di
+		jmp	strcmp_loop
+
+	strcmp_notequal:			;jesli litery nie sa rowne ustawiamy al na 1 (domyslnie przy wywolaniu komendy byl ustawiony na 0)
+		mov	al, 1d	
+	
+	strcmp_fin:				;przed powrotem zdejmujemy wartosci ze stosu
+		pop	di
+		pop	si
+		ret
+;===========================================================================================================================================================
+ifIsUpperCaseConvertToLower:			;procedura sprawdza czy znak w al jest duza litera jesli tak to konwertuje go na mala litere				
+	cmp	al, 'A'				;sprawdzamy czy znak jest >=65 i <=90 jesli tak jest to duza litera
+	jl	Tolower_fin			;jesli nie jest to duza litera skaczemy do konca procedury
+	cmp	al, 'Z'
+	jg	Tolower_fin
+	add	al, 32d				;jesli jest to duza litera dadajemy 'A'-'a' by zamienic ja na mala
+
+	Tolower_fin:				;zdejmujemy wartosci ze stosu i powracamy z procedury
+		ret
+;===========================================================================================================================================================
+exception:					;procedura wypisuje blad we wprowadzonych danych oraz konczy dzialanie programu			
+	call	putstr				;wypisywanie komunikatu o bledzie
+	mov	ah,04ch 			;numer programu powracajacego do systemu 
+	int	021h 				;zakonczenie programu
+
+
+code1 ends
+;============================================
+;SEGMENT KODU KONIEC
+;============================================
+
+
+
+;============================================
+;SEGMENT STOSU POCZATEK
+;============================================
+stack1 segment stack
+		dw	250 dup(?)	
+	w_stosu	dw	?		;wierzcholek stosu
+stack1 ends
+;============================================
+;SEGMENT STOSU KONIEC
+;============================================
+
+end start

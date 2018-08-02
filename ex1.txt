@@ -1,0 +1,532 @@
+;Program1
+;program konwertuje teksty pomiêdzy dwoma systemami zapisu: alfabetem ASCII a kodem Morse'a
+;dziala z wykorzystaniem struktury kopca: poniewaz kod morse'a ma tylko 2 znaki to umieszczamy w korzeniu null(indeks 0) i idac w lewo 
+;dodajemy '.' - 'e' (indeks 1) a w prawo '-' - 't'(indeks 2) itd, mozna zauwazyc ze '.' znajduja sie na nieparzystych indeksach
+;a '-' na indeksach parzystych bedziemy to wykorzystywac przy zamianie ASCII na Morse'a znajdujac ASCII w tablicy i idac z tego miejsca do korzenia
+;zapisujac odpowiednio znaki w zaleznosci czy jestesmy na parzystym czy nieparzystym indeksie.
+;Przy zamianie Morse'a na ASCII bedziemy szli w prawo lub lewo w zaleznosci od wczytanego znaku az do spacji wtedy wypisujemy znak z indeksu na ktorym jestesmy
+
+
+;============================================
+;SEGMENT DANYCH POCZATEK
+;============================================
+dane1 segment
+
+	tab		db	0d, 'e', 't', 'i', 'a', 'n', 'm', 's', 'u', 'r', 'w', 'd', 'k', 'g', 'o', 'h', 'v', 'f', 0d, 'l', 0d, 'p', 'j', 'b', 'x'
+			db	'c', 'y', 'z', 'q', 0d, 0d, '5', '4', 0d, '3', 0d, 0d, 0d, '2', 0d, ' ', '+', 0d, 0d, 0d, 0d, '1', '6', '=', '/', 0d, 0d
+			db	0d, '(', 0d, '7', 0d, 0d, 0d, '8', 0d, '9', '0', 0d, 0d, 0d, 0d, 0d, 0d, 0d, 0d, 0d, 0d, 0d, 0d, '?', '_', 0d, 0d, 0d
+			db	0d, '"', 0d, 0d, '.', 0d, 0d, 0d, 0d, '@', 0d, 0d, 0d, 96d, 0d, 0d, '-', 0d, 0d, 0d, 0d, 0d, 0d, 0d, 0d, ';', '!', 0d, ')'
+			db	0d, 0d, 0d, 0d, 0d, ',', 0d, 0d, 0d, 0d, ':'
+
+	powit		db	13d, 10d, "Witaj w programie konwertujacym teksty pomiedzy alfabetem ASCII a kodem Morse'a. "
+			db	"Tekst do tlumaczenia moze zawierac maksymalnie 100 znakow, zaden kolejny nie zostanie wczytany, a co za tym idzie przetlumaczony. "
+			db	"W przypadku niewprowadzenia zadnego znaku program zakonczy dzialanie bez wypisania czegokolwiek. "
+			db	"Aby kodowac (ASCII na Morse'a) wprowadz Koduj, aby dekodowac (Morse na ASCII) wprowadz Dekoduj:", 13d, 10d, 13d, 10d, 0d
+
+	Kod		db	13d, 10d, "Wprowadz tekst zlozony ze znakow ASCII:", 13d, 10d, 13d, 10d, 0d
+	Dekod		db	13d, 10d, "Wprowadz tekst z kodem Morse'a:", 13d, 10d, 13d, 10d, 0d
+
+	Komenda			db	8d
+				db	0d
+				db	8 dup(0d)
+
+	Wczyt			db	101d
+				db	0d
+				db	101 dup(0d)
+
+	Result			db	13d, 10d, 800 dup(0d)
+
+	CRLF			db	13d, 10d, 0d
+	Operacja1		db	"koduj", 0d
+	Operacja2		db	"dekoduj", 0d
+
+	CommandNotFound		db	13d, 10d, "Wprowadzono niepoprawna komende. Dzaialanie programu zostanie przerwane.Nastepnym razem wprowadz Koduj lub Dekoduj.", 13d, 10d, 0d
+
+	SignNotFoundException	db	13d, 10d, "Blad: wprowadzony znak ASCII nie jest przetlumaczalny na kod Morse'a.", 13d, 10d, 0d
+	NotASCIISignException	db	13d, 10d, "Blad: wprowadzony znak nie jest znakiem ASCII.", 13d, 10d, 0d
+	NotMorseException	db	13d, 10d, "Blad: wprowadzony znak nie jest znakiem morse'a, czyli '.' ani '-'.", 13d, 10d, 0d
+	MorseNotExistException	db	13d, 10d, "Blad: wprowadzony kod Morse'a nie ma odpowiednika w kodzie ASCII.", 13d, 10d, 0d
+
+dane1 ends
+;============================================
+;SEGMENT DANYCH KONIEC
+;============================================
+
+
+
+
+;============================================
+;SEGMENT KODU POCZATEK
+;============================================
+code1 segment
+
+start:
+
+;inicjalizacja stosu:-------------------------
+
+	mov	ax,seg w_stosu	
+	mov	ss,ax
+	mov	sp,offset w_stosu
+
+;program:-------------------------------------
+
+	mov	ax, seg dane1			;ustawienie ds na dane1
+	mov	ds, ax
+
+	mov	ax, offset powit
+	call	putstr				;wyswietlenie wiadomosci powitalnej
+				
+	mov	ax, offset Komenda		;wczytanie wyboru uzytkownika
+	call	getstr
+
+	mov	ax, offset CRLF
+	call	putstr
+
+	mov	si, offset Operacja1		;porownanie wczytanego polecenia z 'Koduj', do si ladujemy Operacja1
+	mov	di, offset Komenda + 2		;do di Komenda
+	xor	ax, ax
+	call	strcmp				;porownujemy
+	cmp	al, 1d				;jesli sie nie zgadza skaczemy dalej
+	je	opcja2
+	call	koduj				;jesli sie zgadza to kodujemy
+	jmp	prog_fin
+
+	opcja2:		 
+		mov	si, offset Operacja2		;porownanie wczytanego polecenia z 'Dekoduj', do si ladujemy Operacja2
+		xor	ax, ax
+		call	strcmp				;porownujemy
+		cmp	al, 1d				;jesli sie nie zgadza to wyswietlamy komunikat o bledzie
+		je	prog_err
+		call	dekoduj				;jesli sie zgadza to dekodujemy
+		jmp	prog_fin
+
+;koniec programu:-----------------------------
+
+	prog_err:					;komunikat o blednie wprowadzonej komendzie
+		mov	ax, offset CommandNotFound	
+		call	putstr
+
+	prog_fin:
+		mov	al,0d 			;zwracamy 0 do systemu
+		mov	ah,04ch 		;numer programu powracajacego do systemu
+		int	021h 			;zakonczenie programu
+
+;---------------------------------------------
+;PROCEDURY/FUNKCJE
+;---------------------------------------------
+
+koduj:						;procedura konwertuje znaki ASCII na kod Morse'a
+	push	ax				;podczas trwania procedury zmieniane beda rejestry ax, dx, si, di wiec zapisujemy ich wartosci na stos 			
+	push	bx				;by moc je odzyskac przed powrotem z procedury
+	push	si
+	push	di
+
+	mov	ax, offset Kod			;wypisujemy komunikat odnosnie dzialania procedury
+	call	putstr
+		
+	mov	ax, offset Wczyt		;wczytujemy wprowadzony przez uzytkownika tekst
+	call	getstr
+
+	mov	ax, offset CRLF
+	call	putstr
+	mov	ax, offset CRLF
+	call	putstr
+	mov	ax, offset CRLF
+	call	putstr
+
+	mov	si, offset Wczyt + 2		;si bedziemy traktowac jako indeks Wczytu 
+	mov	di, offset Result + 2		;di wskazuje na indeks stringu Result wiec na poczatku ustawiamy go na poczatek Resultu
+
+	koduj_loop:
+		mov	al, byte ptr ds:[si]		;przenosimy pokolei znaki ASCII ze stringu Wczyt do al
+		test	al, al				;i sprawdzamy czy nie doszlismy do konca stringu
+		jz	koduj_fin			;jesli tak skaczemy do konca procedury
+
+		call	isASCII				;jesli nie to sprawdzamy czy znak jest znakiem ASCII, duza litera i czy jest przetlumaczalny
+		test	ah, ah
+		jnz	koduj_loop
+
+ 		call	ifIsUpperCaseConvertToLower
+		call	findsign
+		test	ah, ah
+		jnz	koduj_loop
+
+		call	changeToMorse			;jesli tak to konwertujemy go na Morse'a
+
+		mov	byte ptr ds:[di], ' '		;po wpisaniu do Result kodu Morse stawiamy przerwe przed nastepnym kodem
+		inc	di					
+		
+		inc	si				;zwiekszamy indeks si (Wczyt) i powtarzamy petle
+		jmp	koduj_loop
+
+	koduj_fin:					;na koniec wypisujemy wynik, sciagamy wartosci ze stosu i powracamy z procedury
+		mov	ax, offset Result
+		call	putstr
+		mov	ax, offset CRLF
+		call	putstr
+		pop	di
+		pop	si
+		pop	bx
+		pop	ax
+		ret
+;===========================================================================================================================================================
+isASCII:					;procedura sprawdza czy dany znak zapisany w al jest znakiem ASCII
+	cmp	al, 0d				;sprawdzamy czy znak jest >=0 i <=127 jesli tak to jest to ASCII jesli nie to nie jest ASCII
+	jl	isNotASCII
+	cmp	al, 127d
+	jg	isNotASCII
+	xor	ah, ah
+	ret
+
+	isNotASCII:						;jesli nie jest to znak ASCII konczymy dzialanie programu wypisujac odpowiedni komunikat'
+		mov	ax, offset NotASCIISignException	
+		mov	cx, si					;znajdujemy bledna dana (jej miejsce w stringu - cx) co przekazujemy lacznie z komunikatem
+		sub	cx, offset Wczyt + 2			;(czyli rejestrem ax) do procedury exception
+		call	exception
+		inc	si
+		xor	ah, ah
+		or	ah, 1d
+		ret
+;===========================================================================================================================================================
+findsign:					;procedura znajduje dany znak znajdujacy sie w al w tablicy tab, indeks znalezionego elementu zwracamy w bx				
+	mov	bx, offset tab		;bx bedziemy traktowali jako indeks tablicy tab
+	mov	cx, 120d			;ustawiamy licznik w cx na 128 (tab ma 128 elementow) 
+
+	find_loop:					;przejezdzamy przez tablice w poszukiwaniu znaku
+		cmp	al, byte ptr ds:[bx]		;jesli go znalezlismy skaczemy do find_found
+		je	find_found
+		inc	bx				;jak nie skaczemy na kolejny indeks tablicy
+		loop	find_loop			;i zmniejszamy ilosc dostepnych znakow, by nie wyskoczyc poza indeks tablicy
+
+	find_notfound:						;jesli dany znak jest nieprzetlumaczalny konczymy dzialanie programu
+		mov	ax, offset SignNotFoundException	
+		mov	cx, si					;znajdujemy bledna dana (jej miejsce w stringu - cx) co przekazujemy lacznie z komunikatem
+		sub	cx, offset Wczyt + 2			;(czyli rejestrem ax) do procedury exception
+		call	exception
+		inc	si
+		xor	ah, ah
+		or	ah, 1d
+		ret
+
+	find_found:					;jesli znalezlismy znak to teraz musimy obliczyc jego indeks w tablicy
+		sub	bx, offset tab			;w tym celu odejmujemy od bx adres poczatku tablicy
+		xor	ah, ah
+		ret
+;===========================================================================================================================================================
+changeToMorse:					;procedura zamienia dany znak ASCII z al na kod Morse'a, wynik wpisujemy do stringu wskazanego przez di
+	push	bx				
+	
+
+	test	bx, bx				;warunkiem konca jest osiagniecie przez bx wartosci 0
+	jz	changeToMorse_fin		
+
+	dec	bx				;aby skoczyc na poprzedni wezel w kopcu musimy najpierw odjac 1 od indeksu a potem podzielic przez 2
+	shr	bx, 1				;w tym celu stosujemy przesuniecie bitowe w prawo o 1 a reszta z dzielenia (0 lub 1) laduje w cf
+	pushf					;przed wywolaniem rekurencyjnym procedury zapisujemy stan flag aby potem sprawdzic czy wezel na
+						;ktorym bylismy byl parzysty (cf = 1) czy nieparzysty (cf = 0)
+	call	changeToMorse			;wywolujemy procedure z parametrem bedacym rodzicem wezla ktory byl argumentem wywolania funkcji
+
+	popf			
+	jnc	put_dot				;jesli reszta z dzielenia rowna sie 0 to argument musial byc nieparzysty a na nieparzystych wezlach stawiamy kropki
+
+	mov	byte ptr ds:[di], '-'		;w przeciwnym wypadku bylismy na parzystym wezle a na nich znajduja sie kreski
+	inc	di				;i to je wstawiamy do resultu w miejsce wskazane przez di
+	jmp	changeToMorse_fin		;wywolanie rekurencyjne powoduje ze znaki '.' i '-' sa wypisane w odpowiedniej kolejnosci
+	
+	put_dot:
+		mov	byte ptr ds:[di], '.'		;wpisujemy '.' w odpowiednie miejsce wyniku (string Result)
+		inc	di				;i zwiekszamy indeks by nie nadpisac wprowadzonego znaku
+	
+	changeToMorse_fin:				;zdejmujemy wartosci ze stosu i powracamy z procedury
+		pop	bx
+		ret
+;===========================================================================================================================================================
+dekoduj:
+	push	ax				;zapisanie wartosci z rejestrow na stos w celu unikniecia nieporzadanego nadpisania
+	push	bx				;ktorejkolwiek z nich
+	push	cx
+	push	dx
+	push	si
+	push	di
+
+	mov	ax, offset Dekod		;wypisanie komunikatu odnosnie dzialania procedury
+	call	putstr
+			
+	mov	ax, offset Wczyt		;wczytanie takstu wprowadzonego przez uzytkownika
+	call	getstr
+
+	mov	ax, offset CRLF
+	call	putstr
+	mov	ax, offset CRLF
+	call	putstr
+	mov	ax, offset CRLF
+	call	putstr
+
+	mov	si, offset Wczyt + 2		;si bedziemy traktowac jako indeks Wczytu wiec kopiujemy do niego wartosc ax
+	mov	di, offset Result + 2		;di wskazuje na indeks stringu Result wiec na poczatku ustawiamy go na poczatek Resultu
+	mov	bx, offset tab			;bx bedziemy traktowac jako indeks tab w procedurze getASCII ktora bedziemy wywolywac
+	mov	cx, 100d			;maksymalnie mozemy przetlumaczyc tylko 100 znakow
+	
+	dekoduj_loop:
+		cmp	cx, 0d			;sprawdzamy czy nie przekroczylismy limitu znakow do tlumaczenia
+		jle	dekoduj_fin		;jesli tak skaczemy do konca procedury
+
+		mov	al, byte ptr ds:[si]	;przenosimy pokolei znaki ze stringu do al
+		test	al, al			;i sprawdzamy czy nie doszlismy do konca stringu
+		jz	dekoduj_fin		;jesli tak skaczemy do konca procedury
+
+		call	isMorse			;jesli nie to sprawdzamy czy znak jest znakiem Morse'a
+		test	ah, ah
+		jnz	dekoduj_loop
+
+ 		call	getASCII		;jesli jest to wczytujemy kolejne znaki az bedzie uda sie przetlumaczyc na ASCII ktory zwracany jest w al
+		test	ah, ah
+		jnz	dekoduj_loop
+
+		mov	byte ptr ds:[di], al	;otrzymany znak wpisujemy do Result
+		inc	di			;i zwiekszamy indeks przygotowujac sie na wpisanie kolejnego znaku
+				
+		jmp	dekoduj_loop		;i powtarzamy petle az do przetlumaczenia calego tekstu
+
+	dekoduj_fin:				;po skonczeniu procedury wypisujemy wynik, sciagamy wartosci ze stosu i powracamy z procedury
+		mov	ax, offset Result
+		call	putstr
+		mov	ax, offset CRLF
+		call	putstr
+		pop	di
+		pop	si
+		pop	dx
+		pop	cx
+		pop	bx
+		pop	ax
+		ret
+;===========================================================================================================================================================
+isMorse:					;procedura sprawdza czy dany znak w al jest znakiem morse
+	cmp	al, '.'				;jesli tak powracamy z procedury
+	je	isMorse_fin		
+	cmp	al, '-'
+	je	isMorse_fin
+
+	mov	ax, offset NotMorseException
+	push	cx	
+	mov	cx, si				;znajdujemy bledna dana (jej miejsce w stringu - cx) co przekazujemy lacznie z komunikatem
+	sub	cx, offset Wczyt + 2		;(czyli rejestrem ax) do procedury exception
+	call	exception
+	pop	cx
+	inc	si
+	xor	ah, ah
+	or	ah, 1d
+	ret			
+
+	isMorse_fin:
+		xor	ah, ah
+		ret
+;===========================================================================================================================================================
+getASCII:			;procedura znajduje znak ASCII dla kodu Morse'a i zwraca go w al, przesuwa tez si(wczytuje kod Morse'a) 
+	push	bx		;oraz cx(ilosc wczytanych znakow)
+	push	dx
+	push	di		;bx, dx i di maja pozostac niezmienne wiec zapisujemy je na stosie
+
+	xor	dx, dx		;dx pokazywac bedzie indeks tab wiec na poczatku ustawiamy go na zero
+
+	getASCII_loop:
+		cmp	dx, 119			;jesli wyszlismy poza tablice kod jest niepoprawny, wyswietlamy komunikat i konczymy program
+		jg	OutofArray
+		cmp	al, ' '			;jesli trafilismy na spacje konczymy procedure zwracamy znak z indeksu na ktorym jestesmy
+		je	getASCII_fin
+		cmp	al, 0d			;jesli trafilismy na koniec stringu konczymy procedure zwracamy znak z indeksu na ktorym jestesmy
+		je	getASCII_fin
+		cmp	al, '-'			;jesli trafilismy na '-' idziemy w prawo na kopcu
+		je	gotoright
+		cmp	al, '.'			;jesli trafilismy na '.' idziemy w lewo na kopcu
+		je	gotoleft
+
+		gotoright:				;jesli wczytalismy '-' kierujemy sie w prawo na kopcu
+			shl	dx, 1			;czyli mnozymy dx razy 2 (stosujemy przesuniecie w lewo o 1)
+			add	dx, 2d			;i dodajemy 2 - w ten sposob jestesmy na wezle dziecku wezla z ktorego skakalismy
+			inc	si			;zwiekszamy si i wczytujemy kolejny znak
+			mov	al, byte ptr ds:[si]
+			dec	cx			;jednoczesnie zmniejszajac cx czyli ilosc znakow mozliwych jeszcze do wczytania
+			jmp	getASCII_loop
+
+		gotoleft:				;jesli wczytalismy '.' kierujemy sie w lewo na kopcu
+			shl	dx, 1			;czyli mnozymy dx razy 2 (stosujemy przesuniecie w lewo o 1)
+			add	dx, 1d			;i dodajemy 1 - w ten sposob jestesmy na wezle dziecku wezla z ktorego skakalismy
+			inc	si
+			mov	al, byte ptr ds:[si]
+			dec	cx			;jednoczesnie zmniejszajac cx czyli ilosc znakow mozliwych jeszcze do wczytania
+			jmp	getASCII_loop
+
+	OutofArray:						;jesli wyslismy poza tab to znaczy ze wprowadzony zly kod Morse
+		dec	si					;poniewaz w metodzie dekoduj si jest zawsze o jeden indeks do przodu w stosunku do wczytanych	
+								;znakow (my obrabiamy jeden a si wczytuje juz kolejny) to musimy zmniejszyc indeks o 1
+								;w przypadku wystapienia bledu tak by dobrze wskazac ten blad
+		mov	ax, offset MorseNotExistException
+		push	cx
+		mov	cx, si					;znajdujemy bledna dana (jej miejsce w stringu - cx) co przekazujemy lacznie z komunikatem
+		sub	cx, offset Wczyt + 2			;(czyli rejestrem ax) do procedury exception
+		call	exception
+		pop	cx
+		pop	di
+		pop	dx
+		pop	bx
+		inc	si
+		xor	ah, ah
+		or	ah, 1d
+		ret
+
+	getASCII_fin:				;zdejmujemy wartosci ze stosu i powracamy z procedury ze znakiem ASCII znajdujacym sie w al
+		add	bx, dx			;zapisujemy znak z indeksu na ktorym skonczylismy poszukiwanie
+		mov	al, byte ptr ds:[bx]
+		test	al, al			;jesli jednak znak ten jest nullem znaczy to ze wprowadzono bledny kod Morse'a
+		jz	OutofArray		;zostanie wiec wyswietlony odpowiedni komunikat a praca programu zterminowana
+
+		inc	si			;jesli sie tu znalezlismy to znaczy ze natrafilismy na ' ' albo koniec Wczytu wiec zwiekszamy si
+		dec	cx			;i zmniejszamy cx aby pominac spacje lub zakonczyc tlumaczenie w przypadku konca stringu
+	
+		pop	di
+		pop	dx
+		pop	bx
+		ret
+;===========================================================================================================================================================
+putstr:						;procedura wypisuje dany string wypisujac po jednym znaku, wskaznik na poczatek stringu w ax
+	push	ax				;w czasie trwania procedury zmieniane beda rejestry ax i dx wiec zapisujemy ich wartosci na stosie 
+	push	bx				;aby przy powrocie z procedury mozna bylo je odzyskac
+
+	mov	bx, ax				;wskaznik z ax nalezy przeniesc do bx, ktory bedzie robil za indeks stringu, string jako tablica charow
+	mov	al, byte ptr ds:[bx]		;kopiujemy do al pierwszy znak ze stringu
+
+	putstr_loop:				;petla wypisuje po kolei znaki az dojdzie do konca stringu
+		test	al, al			;sprawdzamy czy dany znak jest znakiem konca stringu - 0 (test ustawia odpowiednia flage bez zmiany al) 
+		jz	putstr_fin		;jesli tak skaczemy do konca procedury
+		call	putchar			;jesli nie to wypisujemy dany znak wywolujac procedure putchar
+		inc	bx			;i wczytujemy kolejny
+		mov	al, byte ptr ds:[bx]
+		jmp	putstr_loop
+
+	putstr_fin:				;zdejmujemy wartosci ze stosu i powracamy z procedury
+		pop	bx
+		pop	ax
+		ret
+;===========================================================================================================================================================
+putchar:					;procedura wypisujaca jeden znak, znak zostaje przekazany do procedury w al
+	push	ax				;w czasie trwania procedury zmieniane beda rejestry ax i dx wiec zapisujemy ich wartosci na stosie 
+	push	dx				;aby przy powrocie z procedury mozna bylo je odzyskac
+
+	mov	dl, al				;przeslanie znaku z al do dl (argumenty do wywolania MS-DOS 2h musza byc w dl) 
+	mov	ah, 2h				;wyspecyfikowanie o jaka procedure MS-DOS nam chodzi
+	int	21h				;przerwanie z wypisaniem znaku
+
+	pop	dx				;zdjecie wartosci ze stosu i powrot z procedury
+	pop	ax
+	ret
+;===========================================================================================================================================================
+getstr:						;procedura wczytujaca wprowadzony przez uzytkownika tekst, wskaznik na poczatek buffora
+	push	ax				;w czasie trwania procedury zmieniane beda rejestry ax i dx wiec zapisujemy ich wartosci na stosie
+	push	dx				;aby przy powrocie z procedury mozna bylo je odzyskac
+	push	bx
+
+	mov	bx, ax				;kopiuje wartosc ax do bx by znac poczatek bufora
+
+	mov	dx, ax				;przeslanie adresu buffora z ax do dx (argumenty do wywolania MS-DOS 0Ah musza byc w dx) 		
+	mov	ah, 0Ah				;wyspecyfikowanie o jaka procedure MS-DOS nam chodzi
+	int	21h				;przerwanie z wczytaniem stringu
+
+	getstr_loop:				;przeszukuje wczytany string az znajde 13d i zamieniam na 0d - zgodnie z przyjeta przeze mnie konwencja
+		mov	al, byte ptr ds:[bx]	;stringi beda konczyc sie 0d by wszystkie procedury operujace na stringach byly kompatybilne
+		cmp	al, 13d			;(m.in putstr wypisuje string konczacy sie tylko 0d)
+		je	getstr_fin			
+		inc	bx
+		jmp	getstr_loop
+	
+	getstr_fin:				;zamienienie 13d na 0d oraz zdjecie wartosci ze stosu i powrot z procedury
+		mov	byte ptr ds:[bx], 0d
+		pop	bx		
+		pop	dx				
+		pop	ax
+		ret
+;===========================================================================================================================================================
+strcmp:						;procedura porownoje 2 stringi, jesli sa sobie rowne zwraca 0 jesli nie sa rowne zwraca 1 zapisane w al
+	push	si				;si to wskaznik na poczatek stringu pierwszego do ktorego bedziemy porownywac string drugi
+	push	di				;di to wskaznik na poczatek stringu drugiego ktory bedziemy przyrownywac do pierwszego
+
+	strcmp_loop:
+		mov	ah, byte ptr ds:[si]	;kopiujemy litere z pierwszego stringu do ah
+		mov	al, byte ptr ds:[di]	;oraz litere z drugiego stringu do al
+
+		call	ifIsUpperCaseConvertToLower	;jesli litera z drugiego stringu jest duza zamieniamy ja na mala
+
+		cmp	ah, al			;i porownujemy obie litery
+		jne	strcmp_notequal		;jesli nie sa rowne skaczemy do strcmp_notequal
+		test	ah, ah			;jesli skonczyl sie pierwszy string do ktorego porownujemy drugi 
+		jz	strcmp_fin		;to skaczemy do konca procedury
+		inc	si			;w przeciwnym wypadku zwiekszamy si i di by wskazywaly na kolajna litere
+		inc	di
+		jmp	strcmp_loop
+
+	strcmp_notequal:			;jesli litery nie sa rowne ustawiamy al na 1 (domyslnie przy wywolaniu komendy byl ustawiony na 0)
+		mov	al, 1d	
+	
+	strcmp_fin:				;przed powrotem zdejmujemy wartosci ze stosu
+		pop	di
+		pop	si
+		ret
+;===========================================================================================================================================================
+ifIsUpperCaseConvertToLower:			;procedura sprawdza czy znak w al jest duza litera jesli tak to konwertuje go na mala litere				
+	cmp	al, 'A'				;sprawdzamy czy znak jest >=65 i <=90 jesli tak jest to duza litera
+	jl	Tolower_fin			;jesli nie jest to duza litera skaczemy do konca procedury
+	cmp	al, 'Z'
+	jg	Tolower_fin
+	add	al, 32d				;jesli jest to duza litera dadajemy 'A'-'a' by zamienic ja na mala
+
+	Tolower_fin:				;zdejmujemy wartosci ze stosu i powracamy z procedury
+		ret
+;===========================================================================================================================================================
+exception:					;procedura wypisuje blad we wprowadzonych danych
+	push	dx
+
+	push	ax
+	mov	ax, offset Wczyt + 2
+	call	putstr
+	mov	ax, offset CRLF
+	call	putstr
+	pop	ax
+
+	mov	dx, ax
+	mov	al, ' '
+	err_loop:				;zaznaczenie blednej danej w stringu za pomoca ^ wystepujacego pod ta dana
+		call	putchar
+		loop	err_loop
+
+	mov	al, '^'
+	call	putchar
+	
+	mov	ax, dx				;wypisywanie komunikatu o bledzie
+	call	putstr
+	mov	ax, offset CRLF
+	call	putstr
+
+	pop	dx
+	ret
+
+
+code1 ends
+;============================================
+;SEGMENT KODU KONIEC
+;============================================
+
+
+
+
+;============================================
+;SEGMENT STOSU POCZATEK
+;============================================
+stack1 segment stack
+		dw	250 dup(?)	
+	w_stosu	dw	?		;wierzcholek stosu
+stack1 ends
+;============================================
+;SEGMENT STOSU KONIEC
+;============================================
+
+end start
