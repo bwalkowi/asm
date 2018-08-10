@@ -1,0 +1,654 @@
+;Program szyfrujacy dowolnej d�ugosci pliki tekstowe metoda funkcji logicznej XOR przy pomocy podawanego w linii komend klucza tekstowego
+;o maksymalnej dlugosci 20 znakow. Szyfrowanie polega na wykonaniu funkcji XOR miedzy kodem ASCII pierwszego znaku pliku wej�ciowego 
+;z kodem ASCII pierwszego znaku klucza. Nast�pnie drugi znak pliku z drugim znakiem klucza, itd. 
+;Gdy sko�cz� si� znaki klucz jest przewijany i ponownie u�ywany od pierwszego znaku. Post�pujemy tak do ko�ca pliku wej�ciowego. 
+;Wynik, czyli zaszyfrowany plik, jest zapisywany do pliku wyjsciowego.
+
+;============================================
+;SEGMENT DANYCH POCZATEK
+;============================================
+dane1 segment
+
+	Filenames	db 	128 dup(0d)
+	Key		db 	21 dup(0d)
+
+	FileIn		dw	?
+	FileOut		dw	?
+	Buffer		db	512 dup(0d)
+
+	CRLF		db	13d, 10d, 0d
+
+	Choice			db	4d
+				db	0d
+				db	4 dup(0d)
+	
+	TAK			db	"tak", 0d
+	NIE			db	"nie", 0d
+
+	NoArgException		db	13d, 10d, "Blad: brak argumentow w wywolaniu programu.", 13d, 10d, "Poprawny format: program3 plik.wej plik.wyj ", 34d, "klucz", 34d, 13d, 10d, 0d 
+	TooLittleArgException	db	13d, 10d, "Blad: niepoprawne wywolanie programu -> za malo argumentow.", 13d, 10d, "Poprawny format: program3 plik.wej plik.wyj ", 34d, "klucz", 34d, 13d, 10d, 0d
+	KeyLengthException	db	13d, 10d, "Blad: podany klucz jest za dlugi. Klucz nie moze zawierac wiecej niz 20 znakow", 13d, 10d, 0d
+	KeyException		db	13d, 10d, "Blad: niepoprawne wywolanie programu -> nieodpowiednia ilosc argumentow, nie podano klucza.", 13d, 10d, "Poprawny format wywolania programu: program3 plik.wej plik.wyj ", 34d, "klucz", 34d, 13d, 10d, 0d
+	TooManyArgException	db	13d, 10d, "Blad: niepoprawne wywolanie programu -> zbyt duzo argumentow.", 13d, 10d, "Poprawny format: program3 plik.wej plik.wyj ", 34d, "klucz", 34d, 13d, 10d, 0d
+	FileNamesException	db	13d, 10d, "Blad: niepoprawne wywolanie programu -> plik.wej i plik.wyj musza miec rozne nazwy", 13d, 10d, "Poprawny format: program3 plik.wej plik.wyj ", 34d, "klucz", 34d, 13d, 10d, 0d
+
+	OpenFileInException	db	13d, 10d, "Blad podczas proby otwarcia pliku wejsciowego. Sprawdz czy podany plik istnieje i nadaje sie do odczytu. Dzialanie prgoramu zostanie zakonczone", 13d, 10d, 0d
+	OpenFileOutException	db	13d, 10d, "Ostrzezenie: podany plik wyjsciowy istnieje. Czy chcesz go nadpisac? [tak/nie]:", 13d, 10d, 0d
+	CantReadFileException	db	13d, 10d, "Blad podczas proby odczytu z pliku wejsciowego. Dzialanie prgoramu zostanie zakonczone", 13d, 10d, 0d
+	CantWrttoFileException	db	13d, 10d, "Blad podczas proby zapisu do pliku wyjsciowego. Dzialanie prgoramu zostanie zakonczone", 13d, 10d, 0d
+	FullDiskException	db	13d, 10d, "Dysk jest pelny - niemozna kontynuowac zapisu do pliku. Dzialanie prgoramu zostanie zakonczone", 13d, 10d, 0d
+	FileClosingException	db	13d, 10d, "Blad podczas proby zamkniecia pliku. Dzialanie prgoramu zostanie zakonczone", 13d, 10d, 0d
+
+	ChoiceToEnd		db	13d, 10d, "W zwiazku z dokonanym wyborem program zakonczy dzialanie.", 13d, 10d, 0d
+	CreatFileException	db	13d, 10d, "Blad podczas proby utworzenia pliku wyjsciowego. Dzialanie prgoramu zostanie zakonczone", 13d, 10d, 0d
+
+	CmdNotFoundException	db	13d, 10d, "Blad: nierozpoznano polecenia - program zakonczy dzialanie. Nastepnym raze wprowadz tak lub nie", 13d, 10d, 0d
+
+	OperationSucces		db	13d, 10d, "Operacja zakonczona powodzeniem", 13d, 10d, 0d
+
+dane1 ends
+;============================================
+;SEGMENT DANYCH KONIEC
+;============================================
+
+
+
+;============================================
+;SEGMENT KODU POCZATEK
+;============================================
+code1 segment
+
+start:
+
+;inicjalizacja stosu:-------------------------
+
+	mov	ax,seg w_stosu	
+	mov	ss,ax
+	mov	sp,offset w_stosu
+
+;program:-------------------------------------
+
+	mov	ax, seg dane1			;ustawiamy ds na dane1
+	mov	ds, ax
+
+	call	cmdlineparser			;wczytywanie argumentow z lini polecen
+
+	call	openfilein			;otwieramy plik wejsciowy
+	call	openfileout			;otwieramy plik wyjsciowy
+	
+	call	encrypt				;gdy wszystkie pliku sa juz otwarte i gotowe do uzytku nastepuje szyfrowanie
+
+	mov 	bx, word ptr ds:[FileIn]	;po skonczonym szyfrowaniu zamykamy pliki
+	call 	closefile			;zamykamy plik do odczytu
+	mov 	bx, word ptr ds:[FileOut]
+	call 	closefile			;zamykamy plik do zapisu
+	mov	ax, offset OperationSucces	;wypisanie odpowiedniego komunikatu o zakonczeniu sukcesem dzialania programu
+	call 	putstr
+
+;koniec programu:-----------------------------
+
+	mov	al,0d 			;zwracamy 0 do systemu
+	mov	ah,04ch 		;numer programu powracajacego do systemu
+	int	021h 			;zakonczenie programu
+
+;---------------------------------------------
+;PROCEDURY/FUNKCJE
+;---------------------------------------------
+
+
+
+openfilein:					;procedura otwiera plik wejsiowy i zapisuje uchwyt do niego w FileIn
+	push	ax
+	push	dx
+						;input:					output:
+	xor	al, al				;AL = access code:			If succes AX = file handle
+     						;   0 = open for reading		if CF=1, AX=error code (2->file not found, 5->access denied,
+    						;   1 = open for writing		   4->all available handles in use, 12->no more files to be found)
+        					;   2 = open for read/write				
+	mov	dx, si				;DS:DX = address of filename (an ASCIIZ string ending with a zero byte)		
+	mov	ah, 03Dh			;AH = 3Dh -> function open existing file	
+	int	021h
+
+	jc	openfilein_err			;jesli wystapil blad podczas proby otwarcia informujemy o tym uzytkownika i konczymy dzialanie programu
+
+	mov	word ptr ds:[FileIn], ax	;jesli nie wystapil zapisujemy uchwyt do pliku w FileIn
+
+	pop	dx				;sciagamy wartosci z rejestrow i powracamy z procedury
+	pop	ax
+	ret
+
+	openfilein_err:						;w przypadku wystapienia bledu wypisujemy odpowieni komunikat i konczymy dzialanie programu
+		mov	ax, offset OpenFileInException
+		call	exception
+;===========================================================================================================================================================
+openfileout:
+	push	ax
+	push	cx
+	push	dx
+	push	si
+	push	di
+
+	xor	al, al				;AL = access code:			If succes AX = file handle
+     						;   0 = open for reading		if CF=1, AX=error code (2->file not found, 5->access denied,
+    						;   1 = open for writing		   4->all available handles in use, 12->no more files to be found)
+        					;   2 = open for read/write				
+	mov	dx, di				;DS:DX = address of filename (an ASCIIZ string ending with a zero byte)		
+	mov	ah, 03Dh			;AH = 3Dh -> function open existing file	
+	int	021h
+
+	jc	openfileout_create		;jesli wystapil blad znaczy to tyle ze plik nie istnieje i nalezu go utworzyc
+
+	openfileout_choice:
+		mov	bx, ax	
+		call	closefile		;jesli nie wystapil znaczy to ze plik istnieje, nalezy go zamknac i zapytac uzytkownika czy chce go nadpisac
+											
+		mov	ax, offset OpenFileOutException		;informujemy uzytkownika o niebezpieczenstwie nadpisania pliku
+		call	putstr
+
+		mov	ax, offset Choice		;odczytujemy wybor uzytkownika
+		call	getstr
+
+		mov	si, offset TAK			;i przyrownujemy do TAK jesli sie zgadza nadpisujemy plik
+		mov	di, offset Choice + 2
+		xor	ax, ax
+		call	strcmp
+		test	al, al
+		jz	openfileout_create
+
+		mov	si, offset NIE			;jesli sie nie zgadza konczymy prace programu
+		mov	di, offset Choice + 2
+		xor	ax, ax
+		call	strcmp
+		test	al, al
+		jnz	openfileout_err			;jesli wprowadzona komenda jest inna niz oczekiwana wyswietlamy komunikat i konczymy dzialanie prog
+
+		mov	ax, offset ChoiceToEnd
+		call	putstr
+		mov	ah,04ch 		;numer programu powracajacego do systemu
+		int	021h 			;zakonczenie programu
+
+	openfileout_create:
+		pop	di			;sciagamy ze stosu adres do poczatku stringu z nazwa pliku wysjciowego
+
+						;input"										output:
+		xor	cl, cl			;CL = attribute									If succes AX = file handle			
+		mov	dx, di			;DS:DX = address of filename (an ASCIIZ string ending with a zero byte)		if CF = 1, AX = error code 
+		mov	ah, 03Ch		;AH = 3Dh -> function create file/rewrite file					(3->path not found, 4->all
+		int	021h												      ;  available handles in use,
+															      ;  or 5->access denied)
+		jc	openfileout_create_err		;jesli wystapil blad wyswietlamy odpowiedni komunikat
+		
+		mov	word ptr ds:[FileOut], ax	;jesli nie bylo bledu i plik zostal utworzony/nadpisany zapisujemy jego uchwyt do FileOut
+
+		pop	si				;sciagamy wartosci ze stosu i wracamy z procedury
+		pop	dx				
+		pop	cx
+		pop	ax
+		ret
+	
+	openfileout_err:					;w razie podania blednej komendu program wyswietla odpowiedni komunikat
+		mov 	bx, word ptr ds:[FileIn]
+		call 	closefile				;zamykamy plik do odczytu
+		mov	ax, offset CmdNotFoundException		;i zakonczenie pracy programu
+		call 	exception
+
+	openfileout_create_err:					;w razie niepowodzenia tworzenia pliku zostaje wyswietlony odpowiedni komunikat
+		mov 	bx, word ptr ds:[FileIn]		;zamykamy plik do odczytu
+		call 	closefile
+		mov	ax, offset CreatFileException		;i konczymy dzialanie programu
+		call	exception
+;===========================================================================================================================================================
+closefile:			;procedura zamyka otwarty plik, uchwyt do pliku zostaje przekazany do procedury w rejestrze bx
+	push	ax
+
+	mov	ah, 03Eh	;funkcja systemowa zamykajaca plik, jesli CF = 1, AX = error code (6 -> invalid file handle)
+	int	021h
+
+	jc	closefile_err
+
+	pop	ax		;sciagamy wartosci ze stosu i powracamy z procedury
+	ret
+
+	closefile_err:					;informacja o bledzie podczas proby zmakniecia pliku
+		mov	ax, offset FileClosingException
+		call	exception
+;===========================================================================================================================================================
+encrypt:				;procedura xoruje zawartosc pliku wejsciowego i wynik zapisuje do pliku wyjsciowego
+	push	ax			;ax bedzie wykorzystywane jako licznik ile bytow z pliku wej wczytano
+	push	cx			;cx bedzie wykorzystywane jako licznik ile bytow pliku wej nalezy wczytac
+	push	di			;di bedzie wykorzystywany jako wskaznik na indeks klucza w procedurze xoruj
+
+	mov	cx, 512d		;wczytywac bedziemy po 512 bytow
+	mov	di, offset Key		;wskaznik na poczatek Klucza, bedzie zmieniany w procedurze xoruj
+
+	encrypt_loop:			
+		call	readfromfile	;wczytujemy z pliku wej odpowiednia ilosc bytow
+		call	xoruj		;xorujemy je w buforze
+		call	writetofile	;i zapisujemy do pliku wyj
+		cmp	ax, cx		;jesli wczytano mniej bytow niz nalezalo znaczy to tyle ze skonczono czytac plik wej i wyskakujemy z petli
+		je	encrypt_loop
+	
+	pop	di			;sciagamy wartosci ze stosu i powracamy z procedury
+	pop	cx			
+	pop	ax
+	ret
+;===========================================================================================================================================================
+xoruj:						;procedura xoruje znaki znajdujace sie w buforze, ilosc znakow do xorowania w rejestrze ax
+	push	ax
+	push	cx
+	push	si
+
+	mov	cx, ax
+	mov	si, offset Buffer		;si jako wskaznik na bufor
+	mov	ah, byte ptr ds:[si]		;do ah przenosic bedziemy pokolei znaki z buforu
+	mov	al, byte ptr ds:[di]		;do al przenosic bezdiemy po kolei znaki z klucza
+
+	xoruj_loop:				;petla xorujaca pokolei wszystkie znaki w buforze
+		xor	ah, al			;xorujemy ah al'em
+		mov	byte ptr ds:[si], ah	;i zapisujemy wynik w buforze
+
+		inc	si			;zwiekszamy si i di
+		inc	di
+
+		mov	ah, byte ptr ds:[si]	;przenosimy kolejne znaki
+		mov	al, byte ptr ds:[di]
+		
+		test	al, al			;sprawdzamy czy nie doszlismy do konca klucza jesli nie powtarzamy petle, jesli tak przewijamy klucz
+		jnz	xoruj_loop_end		;i dopiero powtarzamy petle
+		mov	di, offset Key
+		
+		xoruj_loop_end:
+			loop	xoruj_loop
+
+	pop	si				;sciagamy wartosci ze stosu i powracamy z procedury
+	pop	cx
+	pop	ax
+	ret
+;===========================================================================================================================================================
+readfromfile:					;procedura odczytuje okreslona ilosc bytow do odczytu (rejestr cx) z pliku FileIn i zwraca ilosc odczytanych
+						;bytow w rejestrze ax (jesli ax=0 lub ax<cx skonczylismy odczyt pliku)
+	push	bx				
+	push	cx
+	push	dx
+						;input:					output:
+	mov	bx, word ptr ds:[FileIn]	;BX = file handle			AX = count of bytes actually read
+	mov	dx, offset Buffer		;DS:DX = memory buffer address		If AX=0 or AX < CX, EOF
+	mov	ah, 03Fh			;AH = 3Fh -> function read a file	if CF=1, AX=error code (5 -> access denied, 6 ->invalid file handle)
+	int	021h
+
+	jc	readfromfile_err		;sprawdzamy czy nie wystapil blad odczytu (jesli tak to CF=1, jesli nie to CF=0)
+
+	pop	dx				;jesli odczy przebiegl bez bledow sciagamy wartosci ze stosu i powracamy z procedury
+	pop	cx
+	pop	bx
+	ret
+
+	readfromfile_err:					;jesli nie moglismy czytac z pliku, wystapil blad, zamykamy otwarte pliki,
+								;wypisujemy odpowiedni komunikat oraz konczymy dzialanie programu
+		mov 	bx, word ptr ds:[FileIn]
+		call 	closefile				;zamykamy plik do odczytu
+		mov 	bx, word ptr ds:[FileOut]
+		call 	closefile				;zamykamy plik do zapisu
+		mov	ax, offset CantReadFileException	;wypisanie odpowiedniego komunikatu i zakonczenie pracy programu
+		call 	exception
+;===========================================================================================================================================================
+writetofile:					;procedura zapisuje okreslona ilosc bytow (przekazana do procedury w rejestrze ax) z bufora
+						;do pliku wyjsciowego
+	push	ax
+	push	bx				
+	push	cx
+	push	dx
+						;input:					output:
+	mov	cx, ax				;CX = number of bytes to write
+	mov	bx, word ptr ds:[FileOut]	;BX = file handle			AX = count of bytes written
+	mov	dx, offset Buffer		;DS:DX = data address			If AX < CX, error (disk full)
+	mov	ah, 040h			;AH = 040h -> function write to file	if CF=1, AX=error code (5 -> access denied, 6 ->invalid file handle)
+	int	021h
+
+	jc	writetofile_err			;sprawdzamy czy nie wystapil blad zapisu (jesli tak to CF=1, jesli nie to CF=0)
+
+	cmp	ax, cx				;sprawdzamy czy zapisalismy wszystkie znaki jesli nie informujemy uzytkownika o zapelnieniu dysku
+	jb	diskfull_err			;i niemoznosci w zwiazku z tym dalszego zapisu wiec konczymy program
+
+	pop	dx				;jesli zapis przebiegl bez bledow sciagamy wartosci ze stosu i powracamy z procedury
+	pop	cx
+	pop	bx
+	pop	ax
+	ret
+
+	writetofile_err:
+		mov 	bx, word ptr ds:[FileIn]
+		call 	closefile				;zamykamy plik do odczytu
+		mov 	bx, word ptr ds:[FileOut]
+		call 	closefile				;zamykamy plik do zapisu
+		mov	ax, offset CantWrttoFileException	;wypisanie odpowiedniego komunikatu i zakonczenie pracy programu
+		call 	exception
+
+	diskfull_err:
+		mov 	bx, word ptr ds:[FileIn]
+		call 	closefile				;zamykamy plik do odczytu
+		mov 	bx, word ptr ds:[FileOut]
+		call 	closefile				;zamykamy plik do zapisu
+		mov	ax, offset FullDiskException		;wypisanie odpowiedniego komunikatu i zakonczenie pracy programu
+		call 	exception
+;===========================================================================================================================================================
+cmdlineparser:					;procedura wczytuje argumenty z lini polecen i zapisuje nazwy plikow do FileNames a klucz do Key
+						;wskaznik na nazwe plik.wej zwracany w si a na plik.wyj w di
+	push	ax				;zapisujemy na stos rejestry ktorych wartosci nie chcemy nadpisac
+	push	bx
+	push	cx
+	push	dx
+
+	mov	ah, 062h 			;pobranie Program Segment Prefix do bx
+        int	021h
+        mov	es, bx 				;ustawienie adresu PSP w es
+        mov	cl, byte ptr es:[080h]		;zapamietujemy liczbe znakow lini komend w cl
+	test	cl, cl				;sprawdzamy czy wogole podano argumenty
+	jnz	parseargs			;jesli tak to skaczemy do parseargs
+				
+	mov	ax, offset NoArgException	;jesli nie wyswietlamy komunikat o bledzie i konczymy dzialanie programu
+	call	exception					
+
+	parseargs:	
+		mov	si, 081h		;ustawiamy si na poczatek stringu z argumentami aby z niego czytac znak po znaku
+		mov	bx, offset Filenames	;ustawiamy bx na poczatek stringu z przyszlymi nazwami plikow by do niego zapisywac
+		call	ignorewhitespaces	;przewijamy biale znaki jesli takowe wystapily na poczatku stringu z argumentami
+
+		call	iswhitespace		;sprawdzamy czy ostatnio wczytany znak w al jest bialy czy nie
+		test	dl, dl			;jesli nie to skaczemy do filename1
+		jz	filename1
+
+		mov	ax, offset NoArgException	;jesli tak to wyswietlamy komunikat o bledzie i konczymy prace programu
+		call	exception					
+	
+	filename1:				;zapisujemy nazwe pliku wejsciowego di Filenames
+
+		filename1_loop:
+			mov	byte ptr ds:[bx], al	;zapisujemy nazwe pliku znak po znaku
+			inc	bx
+			test	cl, cl			;sprawdzamy czy nie wczytalismy juz wszystkich znakow, wtedy wyswietlamy komunikat
+			jz	files_err		;o niewystarczajacej ilosci argumentow i konczymy dzialanie programu
+			inc	si			;jesli nie wczytujemy kolejny znak
+			mov	al, byte ptr es:[si]
+			dec	cl
+			call	iswhitespace		;i sprawdzamy czy nie jest bialy, jesli jest to znaczy ze wczytalismy juz nazwe pierwszego pliku
+			test	dl, dl			;wiec skaczemy do filename2 by wczytac nazwe 2 pliku
+			jnz	filename2
+			jmp	filename1_loop
+
+	files_err:						;komunikat o bledzie - program zostal wywolany z zamala ilosca argumentow
+		mov	ax, offset TooLittleArgException	;i koniec pracy programu
+		call	exception					
+			
+	filename2:					;wczytujemy nazwe pliku wujsciowego
+		inc	bx				;zostawiamy odstep miedzy plikiem wej a wyj (w odstepie bedzie sie znajdowac null)
+		mov	di, bx				;zapisujemy do di poczatek stringu nazwy pliku wyjsciowego
+		inc	cl				;zwiekszamy cl poniewaz zanim tu wskoczylismy zmiejszylismy go w filename1 a przeciez nie wczytalismy
+							;tego znaku nigdzie
+		call	ignorewhitespaces		;pomijamy biale znaki
+
+		call	iswhitespace			;komunikat o bledzie - program zostal wywolany z zamala ilosca argumentow
+		test	dl, dl				;i konczymy dzialanie programu
+		jnz	files_err
+		
+		filename2_loop:
+			mov	byte ptr ds:[bx], al	;zapisujemy nazwe pliku znak po znaku
+			inc	bx
+			test	cl, cl			;sprawdzamy czy nie wczytalismy juz wszystkich znakow, wtedy wyswietlamy komunikat
+			jz	files_err		;o niewystarczajacej ilosci argumentow i konczymy dzialanie programu
+			inc	si			;jesli nie wczytujemy kolejny znak
+			mov	al, byte ptr es:[si]
+			dec	cl
+			call	iswhitespace		;i sprawdzamy czy nie jest bialy, jesli jest to zanczy ze wczytalismy juz nazwe drugiego pliku
+			test	dl, dl			;wiec skaczemy do keyvalue by wczytac klucz
+			jnz	keyvalue
+			jmp	filename2_loop					
+
+	keyvalue:					;wczytuje wartosc klucza
+		mov	bx, offset Key			;ustawiam bx na poczatek miejsca gdzie bedziemy zapisywac wartosc klucza
+		mov	dh, 21d				;w dh zapisywac bedziemy ile juz znakow wczytalismy do klucza
+		inc	cl				;zwiekszamy cl poniewaz zanim tu wskoczylismy zmiejszylismy go w filename1 a przeciez nie wczytalismy
+							;tego znaku nigdzie
+		call	ignorewhitespaces		;pomijamy biale znaki 
+
+		call	iswhitespace			;komunikat o bledzie - program zostal wywolany z zamala ilosca argumentow
+		test	dl, dl				;i konczymy dzialanie programu
+		jnz	files_err
+
+		cmp	al, 034d			;sprawdzamy czy kolejny znak jest " bo klucz musi byc zawarty w cudzyslowach
+		jne	keyvalue_err
+
+		test	cl, cl				;sprawdzamy czy nie wczytalismy juz wszystkich znakow, wtedy wyswietlamy komunikat
+		jz	keyvalue_err			;o niewystarczajacej ilosci argumentow i konczymy dzialanie programu
+
+		inc	si				;jesli nie wczytujemy kolejny znak, pomijajac " ktory otwiera klucz ale sie wnim nie zawiera
+		mov	al, byte ptr es:[si]
+		dec	cl
+
+		keyvalue_loop:				;wczytujemy znak po znaku do klucza
+			mov	byte ptr ds:[bx], al	
+			inc	bx
+
+			dec	dh			;zmniejszamy ilosc mozliwych znakow do wczytania do klucza
+			test	dh, dh			;jesli zeszlismy do zera to zanczy ze wczytalismy juz 21 znakow, czyli wiecej niz moglismy
+			jz	keylength_err		;wypisujemy komunikat o bledzie o konczymy program
+
+			test	cl, cl			;sprawdzamy czy nie wczytalismy juz wszystkich znakow
+			jz	keyvalue_err		;jesli tak konczymy dzialanie procedury
+		
+			inc	si			;jesli nie wczytujemy dalej
+			mov	al, byte ptr es:[si]
+			dec	cl
+
+			cmp	al, 034d		;sprawdzamy czy wczytany znak jest " 
+			je	keyvalue_loaded		;jesli tak to znaczy ze wczytalismy juz klucz wiec skaczemy do keyvalue_loaded
+			jmp	keyvalue_loop		;jesli nie to kontynujemy petle wczytujac dalej
+
+		keyvalue_loaded:			
+			test	dh, dh			;sprawdzamy czy wogole podano klucz anie same cudzyslowy -> ""
+			jz	keyvalue_err		;jesli nie podano informujemy o bledzie i konczymy dzialanie programu
+
+			test	cl, cl			;sprawdzamy czy wczytujac klucz wczytalismy juz wszystkie znaki
+			jz	cmdlineparser_fin	;jesli tak to konczymy dzialanie procedury
+
+			inc	si			;jesli nie to sprawdzamy czy uzytkownik nie podal czasem zbyt duzo argumentow
+			mov	al, byte ptr es:[si]
+			dec	cl				
+			jmp	toomanyargs	
+
+		keylength_err:					;podany klucz ma dlugosc dluzsza niz moze
+			mov	ax, offset KeyLengthException		
+			call	exception	
+
+		keyvalue_err:					;informujemy o niepodaniu klucza i konczymy program
+			mov	ax, offset KeyException		
+			call	exception
+
+	toomanyargs:					;sprawdzamy czy nie podano czasem zbyt duzo argumentow
+		inc	cl				;zwiekszamy cl poniewaz zanim tu wskoczylismy zmiejszylismy go w filename1 a przeciez nie wczytalismy
+							;tego znaku nigdzie
+		call	ignorewhitespaces		;pomijamy biale znaki 
+
+		call	iswhitespace			;jesli nie ma wiecej znakow konczymy procedure wczytawczy wszystkie argumenty 
+		test	dl, dl				
+		jnz	cmdlineparser_fin
+
+		mov	ax, offset TooManyArgException	;w przeciwnym razie wypisujemy komuniakta o bledzie (podano zbyt duzo argumentow)
+		call	exception					
+
+	cmdlineparser_fin:					;sciagamy wartosci ze stosu i powracamy z procedury
+		mov	si, offset Filenames			;ustawiamy si na poczatek stringu z nazwa pliku wejsciowego
+	
+		call	strcmp				;sprawdzamy czy plik.wej i plik.wyj to dwa rozne pliki
+		test	al, al
+		jz	filenames_err			;jesli nie informujemy uzytkownika o bledzie i konczymy dzialanie programu
+
+		pop	dx				;na koniec sciagamy wartosci ze stosu i powracamy z procedury
+		pop	cx
+		pop	bx
+		pop	ax
+		ret
+
+	filenames_err:					;informujemy uzytkownika ze podane pliki wej i wyj sa takie same i konczymy program
+		mov	ax, offset FileNamesException		
+		call	exception
+;===========================================================================================================================================================
+ignorewhitespaces:				;procedura pomija biale znaki w stringu (adres do miejsca w stringu w si) i zwraca indeks
+						;pierwszego niebialego znaku w si, cx-ilosc pozostalych znakow w stringu, al-ostatnio wczytany znak			
+	push	dx				
+
+	mov	al, byte ptr es:[si]		;wczytanie pierwszego znaku do al 
+	dec	cl				;przy kazdym wczytywaniu zmniejszamy ilosc mozliwych do wczytania znakow
+	call	iswhitespace			;sprawdzamy czy znak w al jest bialym znakiem
+	test	dl, dl				
+	jz	ignore_fin			;jesli nie jest bialym znakiem powracamy z procedury z biezaca wartoscia si i cx
+
+	ignore_loop:				;jesli jest bialym znakiem to wczytujemy kolejne znaki dopoki nie natrafimy na niebialy znak
+		test	cl, cl			;za kazdym razem sprawdzamy czy nie wczytalismy juz wszystkich znakow
+		jz	ignore_fin		;jesli tak to konczymy procedure
+
+		inc	si			;jesli nie wczytujemy dalej zmniejszajac przy kazdym wczytaniu cx
+		mov	al, byte ptr es:[si]
+		dec	cl
+		
+		call	iswhitespace		;sprawdzanie czy wczytane znak jest bialym znakiem
+		test	dl, dl
+		jnz	ignore_loop
+
+	ignore_fin:				;sciagamy wartosci ze stosu i powracamy z procedury
+		pop	dx
+		ret
+;===========================================================================================================================================================
+iswhitespace:				;procedura sprawdza czy znak w al jest bialym znakiem (spacja lub tab) jesli nie zwraca w dl 0 jesli tak zwraca 1
+	cmp	al, 032d		;sprawdzam czy znak w al jest spacja
+	je	whitespace
+	cmp	al, 09d			;sprawdzam czy znak w al jest tabem
+	je	whitespace
+	xor	dl, dl			;jesli nie jest bialym znakiem zerujemy dl (jesli wczesniej byl bialym znakiem to w dl pozostalo 1 
+	ret				;i nalezy to wyzerowac) i powracamy z procedury
+
+	whitespace:			;jesli jest bialym znakiem zmieniam wartosc dl z 0 na 1 i powracam z procedury
+		or	dl, 1d
+		ret
+;===========================================================================================================================================================
+putstr:						;procedura wypisuje dany string wypisujac po jednym znaku, wskaznik na poczatek stringu w ax
+	push	ax				;w czasie trwania procedury zmieniane beda rejestry ax i dx wiec zapisujemy ich wartosci na stosie 
+	push	bx				;aby przy powrocie z procedury mozna bylo je odzyskac
+
+	mov	bx, ax				;wskaznik z ax nalezy przeniesc do bx, ktory bedzie robil za indeks stringu, string jako tablica charow
+	mov	al, byte ptr ds:[bx]		;kopiujemy do al pierwszy znak ze stringu
+
+	putstr_loop:				;petla wypisuje po kolei znaki az dojdzie do konca stringu
+		test	al, al			;sprawdzamy czy dany znak jest znakiem konca stringu - 0 (test ustawia odpowiednia flage bez zmiany al) 
+		jz	putstr_fin		;jesli tak skaczemy do konca procedury
+		call	putchar			;jesli nie to wypisujemy dany znak wywolujac procedure putchar
+		inc	bx			;i wczytujemy kolejny
+		mov	al, byte ptr ds:[bx]
+		jmp	putstr_loop
+
+	putstr_fin:				;zdejmujemy wartosci ze stosu i powracamy z procedury
+		pop	bx
+		pop	ax
+		ret
+;===========================================================================================================================================================
+putchar:					;procedura wypisujaca jeden znak, znak zostaje przekazany do procedury w al
+	push	ax				;w czasie trwania procedury zmieniane beda rejestry ax i dx wiec zapisujemy ich wartosci na stosie 
+	push	dx				;aby przy powrocie z procedury mozna bylo je odzyskac
+
+	mov	dl, al				;przeslanie znaku z al do dl (argumenty do wywolania funkcji systemowej int 21h: 2h musza byc w dl) 
+	mov	ah, 2h				;wyspecyfikowanie o jaka procedure funkcji systemowej nam chodzi
+	int	21h				;przerwanie z wypisaniem znaku
+
+	pop	dx				;zdjecie wartosci ze stosu i powrot z procedury
+	pop	ax
+	ret
+;===========================================================================================================================================================
+getstr:						;procedura wczytujaca wprowadzony przez uzytkownika tekst, wskaznik na poczatek buffora
+	push	ax				;w czasie trwania procedury zmieniane beda rejestry ax i dx wiec zapisujemy ich wartosci na stosie
+	push	dx				;aby przy powrocie z procedury mozna bylo je odzyskac
+	push	bx
+
+	mov	bx, ax				;kopiuje wartosc ax do bx by znac poczatek bufora
+
+	mov	dx, ax				;przeslanie adresu buffora z ax do dx (argumenty do wywolania 0Ah musza byc w dx) 		
+	mov	ah, 0Ah				;wyspecyfikowanie o jaka procedure nam chodzi
+	int	21h				;przerwanie z wczytaniem stringu
+
+	getstr_loop:				;przeszukuje wczytany string az znajde 13d i zamieniam na 0d - zgodnie z przyjeta przeze mnie konwencja
+		mov	al, byte ptr ds:[bx]	;stringi beda konczyc sie 0d by wszystkie procedury operujace na stringach byly kompatybilne
+		cmp	al, 13d			;(m.in putstr wypisuje string konczacy sie tylko 0d)
+		je	getstr_fin			
+		inc	bx
+		jmp	getstr_loop
+	
+	getstr_fin:				;zamienienie 13d na 0d oraz zdjecie wartosci ze stosu i powrot z procedury
+		mov	byte ptr ds:[bx], 0d
+		pop	bx		
+		pop	dx				
+		pop	ax
+		ret
+;===========================================================================================================================================================
+strcmp:						;procedura porownoje 2 stringi, jesli sa sobie rowne zwraca 0 jesli nie sa rowne zwraca 1 zapisane w al
+	push	si				;si to wskaznik na poczatek stringu pierwszego do ktorego bedziemy porownywac string drugi
+	push	di				;di to wskaznik na poczatek stringu drugiego ktory bedziemy przyrownywac do pierwszego
+
+	strcmp_loop:
+		mov	al, byte ptr ds:[si]		;kopiujemy litere z pierwszego stringu do al
+		call	ifIsUpperCaseConvertToLower	;jesli litera jest duza zamieniamy ja na mala
+		mov	ah, al				;i przenosimy do ah
+
+		mov	al, byte ptr ds:[di]		;kopiujemy litere z drugiego stringu do al
+		call	ifIsUpperCaseConvertToLower	;jesli litera z drugiego stringu jest duza zamieniamy ja na mala
+
+		cmp	ah, al				;i porownujemy obie litery
+		jne	strcmp_notequal			;jesli nie sa rowne skaczemy do strcmp_notequal
+		test	ah, ah				;jesli skonczyl sie pierwszy string do ktorego porownujemy drugi 
+		jz	strcmp_fin			;to skaczemy do konca procedury
+		inc	si				;w przeciwnym wypadku zwiekszamy si i di by wskazywaly na kolajna litere
+		inc	di
+		jmp	strcmp_loop
+
+	strcmp_notequal:			;jesli litery nie sa rowne ustawiamy al na 1 (domyslnie przy wywolaniu komendy byl ustawiony na 0)
+		mov	al, 1d	
+	
+	strcmp_fin:				;przed powrotem zdejmujemy wartosci ze stosu
+		pop	di
+		pop	si
+		ret
+;===========================================================================================================================================================
+ifIsUpperCaseConvertToLower:			;procedura sprawdza czy znak w al jest duza litera jesli tak to konwertuje go na mala litere				
+	cmp	al, 'A'				;sprawdzamy czy znak jest >=65 i <=90 jesli tak jest to duza litera
+	jl	Tolower_fin			;jesli nie jest to duza litera skaczemy do konca procedury
+	cmp	al, 'Z'
+	jg	Tolower_fin
+	add	al, 32d				;jesli jest to duza litera dadajemy 'A'-'a' by zamienic ja na mala
+
+	Tolower_fin:				;zdejmujemy wartosci ze stosu i powracamy z procedury
+		ret
+;===========================================================================================================================================================
+exception:					;procedura wypisuje blad we wprowadzonych danych oraz konczy dzialanie programu			
+	call	putstr				;wypisywanie komunikatu o bledzie
+	mov	ah,04ch 			;numer programu powracajacego do systemu 
+	int	021h 				;zakonczenie programu
+
+
+
+code1 ends
+;============================================
+;SEGMENT KODU KONIEC
+;============================================
+
+
+
+;============================================
+;SEGMENT STOSU POCZATEK
+;============================================
+stack1 segment stack
+		dw	250 dup(?)	
+	w_stosu	dw	?		;wierzcholek stosu
+stack1 ends
+;============================================
+;SEGMENT STOSU KONIEC
+;============================================
+
+end start

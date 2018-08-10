@@ -1558,7 +1558,8 @@ paint:					;procedura rysuje znak w trybie graficznym
 	sub	bl, 33d
 	shl	bx, 1
 	add	bx, offset ASCIItab
-	mov	bx, word ptr ds:[bx]	;wczytujemy offset do matrycy
+	mov	ax, word ptr ds:[bx]	;wczytujemy offset do matrycy
+	mov	bx, ax			;i zapamietujemy go w bx
 
 	xor	dx, dx
 	mov	dh, 8d				;w dh przetrzymujemy rozmiar matrycy
@@ -1852,6 +1853,9 @@ isproperx:					;procedura sprawdza czy wspolrzedna x jest prawidlowa
 	call	getnum
 	test	al, al				;i sprawdzamy czy jest to liczba czy nie
 	jnz	unproperx
+
+	;test	bl, 32d
+	;jnz	unproperx
 
 	cmp	dx, 319d
 	ja	x_outofrange

@@ -1,5 +1,5 @@
 ;Program1
-;program konwertuje teksty pomiêdzy dwoma systemami zapisu: alfabetem ASCII a kodem Morse'a
+;program konwertuje teksty pomiï¿½dzy dwoma systemami zapisu: alfabetem ASCII a kodem Morse'a
 ;dziala z wykorzystaniem struktury kopca: poniewaz kod morse'a ma tylko 2 znaki to umieszczamy w korzeniu null(indeks 0) i idac w lewo 
 ;dodajemy '.' - 'e' (indeks 1) a w prawo '-' - 't'(indeks 2) itd, mozna zauwazyc ze '.' znajduja sie na nieparzystych indeksach
 ;a '-' na indeksach parzystych bedziemy to wykorzystywac przy zamianie ASCII na Morse'a znajdujac ASCII w tablicy i idac z tego miejsca do korzenia
